@@ -33,12 +33,13 @@ var LLM = PK.LLM = {
   stats: { calls: 0, fails: 0, lastLatency: 0 },
   load: function () {
     try {
-      var raw = localStorage.getItem('pk3d.llm');
+      var raw = localStorage.getItem('agentpoker.llm');
+      if (raw === null) raw = localStorage.getItem('pk3d.llm'); // 旧项目名迁移
       if (raw) Object.assign(this.cfg, JSON.parse(raw));
     } catch (e) { }
   },
   save: function () {
-    try { localStorage.setItem('pk3d.llm', JSON.stringify(this.cfg)); } catch (e) { }
+    try { localStorage.setItem('agentpoker.llm', JSON.stringify(this.cfg)); } catch (e) { }
   },
   ready: function () { return this.cfg.enabled && this.cfg.baseUrl && this.cfg.apiKey && this.cfg.model; },
 

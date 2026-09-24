@@ -11,7 +11,7 @@ var Hud = PK.Hud = {
 };
 
 Hud.savePrefs = function () {
-  try { localStorage.setItem('pk3d.prefs', JSON.stringify(this.prefs)); } catch (e) { }
+  try { localStorage.setItem('agentpoker.prefs', JSON.stringify(this.prefs)); } catch (e) { }
 };
 
 /* ================= 音效 (WebAudio 合成) ================= */

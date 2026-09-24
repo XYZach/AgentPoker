@@ -8,8 +8,7 @@ var PK = (typeof window !== 'undefined') ? (window.PK = window.PK || {}) : (glob
 
 var EN = {
   /* 文档/大厅 */
-  '德州扑克 — 现金局 · 锦标赛 · 鱿鱼场': 'Texas Hold\'em — Cash · Tournament · Squid',
-  '♠ 德州扑克': '♠ Texas Hold\'em',
+  'AgentPoker — 德州扑克 · 现金局 · 锦标赛 · 鱿鱼场': 'AgentPoker — Texas Hold\'em · Cash · Tournament · Squid',
   '经典 2D 牌桌 · 蒙特卡洛胜率 · 记牌器 · 六种 AI 风格 · 可接入大模型 API': 'Classic 2D table · Monte-Carlo equity · Card tracker · 6 AI styles · LLM API integration',
   '现金局': 'Cash Game',
   '盲注固定 · 输光随时重买 · 随时离座': 'Fixed blinds · rebuy anytime · leave anytime',
@@ -214,14 +213,18 @@ PK.I18N = {
   on: function (fn) { this._listeners.push(fn); },
   init: function () {
     var saved = 'zh';
-    try { saved = localStorage.getItem('pk3d.lang') || 'zh'; } catch (e) { }
+    try {
+      saved = localStorage.getItem('agentpoker.lang');
+      if (saved === null) saved = localStorage.getItem('pk3d.lang'); // 旧项目名迁移
+      saved = saved || 'zh';
+    } catch (e) { }
     this.lang = (saved === 'en') ? 'en' : 'zh';
     this.applyStatic();
   },
   setLang: function (lang) {
     if (lang === this.lang) return;
     this.lang = lang;
-    try { localStorage.setItem('pk3d.lang', lang); } catch (e) { }
+    try { localStorage.setItem('agentpoker.lang', lang); } catch (e) { }
     this.applyStatic();
     this._listeners.forEach(function (fn) { try { fn(lang); } catch (e) { } });
   },
@@ -235,7 +238,7 @@ PK.I18N = {
       el.placeholder = PK.t(el.getAttribute('data-i18n-ph'));
     });
     var titleEl = document.querySelector('title');
-    if (titleEl) titleEl.textContent = PK.t('德州扑克 — 现金局 · 锦标赛 · 鱿鱼场');
+    if (titleEl) titleEl.textContent = PK.t('AgentPoker — 德州扑克 · 现金局 · 锦标赛 · 鱿鱼场');
   }
 };
 

@@ -22,7 +22,8 @@ function delay(ms) {
 /* ================= 启动 ================= */
 document.addEventListener('DOMContentLoaded', function () {
   try {
-    var p = localStorage.getItem('pk3d.prefs');
+    var p = localStorage.getItem('agentpoker.prefs');
+    if (p === null) p = localStorage.getItem('pk3d.prefs'); // 旧项目名迁移
     if (p) Object.assign(PK.Hud.prefs, JSON.parse(p));
   } catch (e) { }
   PK.Hud.bindKeys();
