@@ -501,26 +501,12 @@ Scene2D.prototype.revealHole = function (playerId) {
 };
 
 Scene2D.prototype.muckCards = function (playerId) {
-  var self = this;
   var mine = this._cards.filter(function (c) { return c.playerId === playerId && !c.mucked; });
   return Promise.all(mine.map(function (c) {
     c.mucked = true;
-    /* hero 弃牌: 牌留在面前变灰(正面朝上不收走); AI 弃牌: 背面飞向弃牌堆 */
-    if (c.heroCard) {
-      c.root.classList.add('folded-grey');
-      return Promise.resolve();
-    }
-    var from = { x: c.x, y: c.y };
-    var to = self._muck;
-    return T.add({
-      dur: 300 / self.speed, ease: T.Ease.inQuad,
-      onUpdate: function (t) {
-        var x = from.x + (to.x - from.x) * t;
-        var y = from.y + (to.y - from.y) * t - Math.sin(Math.PI * t) * 26;
-        c.root.style.transform = 'translate(' + (x - c.w / 2) + 'px,' + (y - c.h / 2) + 'px)';
-        c.root.style.opacity = 1 - Math.max(0, (t - 0.7) / 0.3);
-      }
-    }).then(function () { c.root.remove(); });
+    /* 弃牌保留: 牌停在玩家面前变透明, 不收走不亮牌面(hero 正面变灰, AI 背面半透明) */
+    c.root.classList.add('folded-grey');
+    return Promise.resolve();
   }));
 };
 
