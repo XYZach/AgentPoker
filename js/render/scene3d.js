@@ -8,7 +8,7 @@ var PK = (typeof window !== 'undefined') ? window.PK : (window.PK = {});
 var T = PK.TWEEN, Tex = PK.Tex;
 
 var TABLE_Y = 1.02;                 // 桌面高度
-var SEAT_RX = 8.9, SEAT_RZ = 6.15;  // 座位椭圆
+var SEAT_RX = 8.2, SEAT_RZ = 5.7;   // 座位椭圆(紧贴桌沿)
 var BET_RX = 4.55, BET_RZ = 2.62;   // 下注区椭圆
 var FELT_RX = 6.15, FELT_RZ = 3.72; // 桌布椭圆
 
@@ -362,7 +362,7 @@ Scene3D.prototype.buildPlayers = function (players) {
     self.scene.add(av.group);
     // DOM 锚点
     var nameAnchor = new THREE.Object3D();
-    nameAnchor.position.set(pos.x, 2.42, pos.z);
+    nameAnchor.position.set(pos.x, 2.18, pos.z);
     self.scene.add(nameAnchor);
     var betP = self.betPos(p.seat, n);
     var betAnchor = new THREE.Object3D();
@@ -383,53 +383,111 @@ Scene3D.prototype.buildPlayers = function (players) {
 Scene3D.prototype._buildAvatar = function (p, pos, n) {
   var g = new THREE.Group();
   var isSquid = this.mode === 'squid' && !p.isHuman;
-  var bodyColor = p.isHuman ? 0xf5b942 : (isSquid ? 0xe0246c : p.color || 0x3498db);
-  var bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.8 });
-  var skinMat = new THREE.MeshStandardMaterial({ color: 0xe8b88f, roughness: 0.75 });
+  // 每个座位固定种子 → 外观稳定且互不相同
+  var rng = PK.mulberry32(p.id * 977 + 31);
+  var heightScale = 0.93 + rng() * 0.14;
+  var widthScale = 0.88 + rng() * 0.22;
 
-  var torso = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.47, 0.95, 12), bodyMat);
-  torso.position.y = 0.88;
-  torso.castShadow = true;
-  g.add(torso);
-  var head, hat;
-  if (isSquid) {
-    head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), bodyMat);
-    head.position.y = 1.62;
-    var mask = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.36),
-      new THREE.MeshStandardMaterial({ map: Tex.mask(['circle', 'triangle', 'square'][p.id % 3]), transparent: true, roughness: 0.4 }));
-    mask.position.set(0, 1.62, 0.26);
-    g.add(mask);
-    this._labels.push(mask);
-  } else {
-    head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), skinMat);
-    head.position.y = 1.62;
-    hat = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: p.isHuman ? 0xffffff : 0x2c3e50, roughness: 0.8 }));
-    hat.position.y = 1.68;
-    g.add(hat);
-  }
-  head.castShadow = true;
-  g.add(head);
-  // 手臂搭桌
-  var armMat = isSquid ? bodyMat : skinMat;
+  var SKIN = [0xf1c9a5, 0xe8b88f, 0xd9a066, 0xc68642, 0x8d5524];
+  var SHIRT = [0xe74c3c, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x16a085, 0x34495e, 0xc0392b, 0x2980b9, 0xd4a017];
+  var HAIR = [0x2c2416, 0x0f0d0b, 0x6b4a2a, 0x9c7b4a, 0x4a3728, 0x7a5c3a];
+
+  var skin = SKIN[Math.floor(rng() * SKIN.length)];
+  var shirt = p.isHuman ? 0xf5b942
+    : (isSquid ? [0xe0246c, 0xc41d5e, 0xe84a8a][p.id % 3] : SHIRT[p.id % SHIRT.length]);
+  if (isSquid && p.styleKey === 'MANIAC') shirt = 0x14141c; // 疯狂 = 黑色前锋装
+
+  function std(geo, mat) { var m = new THREE.Mesh(geo, mat); m.castShadow = true; return m; }
+
+  var bodyMat = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.8 });
+  var skinMat = new THREE.MeshStandardMaterial({ color: isSquid ? shirt : skin, roughness: 0.75 });
+  var woodMat = new THREE.MeshStandardMaterial({ color: 0x3a2c1e, roughness: 0.7 });
+
+  // 凳子
+  var seat = std(new THREE.CylinderGeometry(0.42, 0.42, 0.09, 16), woodMat);
+  seat.position.y = 0.6; g.add(seat);
+  var pole = std(new THREE.CylinderGeometry(0.055, 0.055, 0.5, 8), woodMat);
+  pole.position.y = 0.32; g.add(pole);
+  var foot = std(new THREE.CylinderGeometry(0.3, 0.34, 0.05, 12), woodMat);
+  foot.position.y = 0.05; g.add(foot);
+
+  // 腿(坐姿: 大腿前伸 + 小腿落地)
+  var legMat = new THREE.MeshStandardMaterial({ color: isSquid ? shirt : 0x2c3e50, roughness: 0.85 });
   [-1, 1].forEach(function (s) {
-    var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.72, 8), armMat);
-    arm.position.set(s * 0.42, 1.18, 0.22);
-    arm.rotation.z = s * 0.6;
-    arm.rotation.x = -0.5;
-    arm.castShadow = true;
+    var thigh = std(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8), legMat);
+    thigh.rotation.x = Math.PI / 2;
+    thigh.position.set(s * 0.15, 0.63, 0.28);
+    g.add(thigh);
+    var shin = std(new THREE.CylinderGeometry(0.08, 0.08, 0.58, 8), legMat);
+    shin.position.set(s * 0.15, 0.3, 0.5);
+    g.add(shin);
+  });
+
+  // 躯干(坐在凳上)
+  var torso = std(new THREE.CylinderGeometry(0.29, 0.43, 0.78, 12), bodyMat);
+  torso.position.y = 1.0;
+  g.add(torso);
+
+  // 头
+  var head = std(new THREE.SphereGeometry(0.235, 16, 12), isSquid ? bodyMat : skinMat);
+  head.position.y = 1.56;
+  g.add(head);
+
+  if (isSquid) {
+    var mask = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34),
+      new THREE.MeshStandardMaterial({ map: Tex.mask(['circle', 'triangle', 'square'][p.id % 3]), transparent: true, roughness: 0.4 }));
+    mask.position.set(0, 1.56, 0.225);
+    g.add(mask);
+  } else {
+    // 发型: 短发 / 棒球帽 / 礼帽 / 光头
+    var roll = rng();
+    if (roll < 0.32) {
+      var hair = std(new THREE.SphereGeometry(0.245, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: HAIR[Math.floor(rng() * HAIR.length)], roughness: 0.9 }));
+      hair.position.y = 1.575; g.add(hair);
+    } else if (roll < 0.58) {
+      var capMat = new THREE.MeshStandardMaterial({ color: [0x2c3e50, 0x8e44ad, 0x16a085, 0x7f8c8d][Math.floor(rng() * 4)], roughness: 0.8 });
+      var capTop = std(new THREE.CylinderGeometry(0.19, 0.215, 0.14, 12), capMat);
+      capTop.position.y = 1.75; g.add(capTop);
+      var brim = std(new THREE.CylinderGeometry(0.29, 0.29, 0.03, 12), capMat);
+      brim.position.set(0, 1.69, 0.09); g.add(brim);
+    } else if (roll < 0.78) {
+      var fhMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.55 });
+      var fhTop = std(new THREE.CylinderGeometry(0.165, 0.165, 0.22, 12), fhMat);
+      fhTop.position.y = 1.8; g.add(fhTop);
+      var fhBrim = std(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 14), fhMat);
+      fhBrim.position.y = 1.7; g.add(fhBrim);
+    }
+    // 墨镜
+    if (rng() < 0.4) {
+      var sg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0x101014, roughness: 0.2, metalness: 0.6 }));
+      sg.position.set(0, 1.585, 0.21);
+      g.add(sg);
+    }
+  }
+
+  // 手臂搭向桌沿
+  [-1, 1].forEach(function (s) {
+    var arm = std(new THREE.CylinderGeometry(0.075, 0.075, 0.62, 8), isSquid ? bodyMat : skinMat);
+    arm.position.set(s * 0.33, 1.18, 0.3);
+    arm.rotation.z = s * 0.55;
+    arm.rotation.x = -0.75;
     g.add(arm);
   });
+
   if (p.isHuman) { // 金色光环标识
-    var halo = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.03, 8, 24),
+    var halo = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.028, 8, 22),
       new THREE.MeshBasicMaterial({ color: 0xffd166 }));
-    halo.position.y = 2.0;
+    halo.position.y = 1.98;
     halo.rotation.x = Math.PI / 2;
     g.add(halo);
   }
+
   g.position.copy(pos);
-  g.lookAt(0, 1.0, 0);
-  g.userData.phase = Math.random() * 6.28;
+  g.rotation.y = Math.atan2(-pos.x, -pos.z); // 立正朝向桌心, 不倾倒
+  g.scale.set(widthScale, heightScale, widthScale);
+  g.userData.phase = rng() * 6.28;
   return { group: g, baseY: 0, head: head, torso: torso, dead: false, thinking: false };
 };
 
@@ -839,12 +897,20 @@ Scene3D.prototype.setAvatarState = function (playerId, state) {
   if (!av || av.dead) return;
   av.state = state;
   if (state === 'folded') {
-    av.group.rotation.x = 0.18;
-    av.group.traverse(function (o) { if (o.material && o.material.color) { o.userData._color = o.userData._color || o.material.color.getHex(); o.material.color.multiplyScalar(0.45); } });
+    av.group.rotation.x = 0.1;
+    // 材质按集合去重后加深一次(同一材质被多个 mesh 共享)
+    var mats = new Set();
+    av.group.traverse(function (o) { if (o.material) mats.add(o.material); });
+    var self2 = this;
+    mats.forEach(function (m) {
+      if (m.color && m.userData._foldColor == null) {
+        m.userData._foldColor = m.color.getHex();
+        m.color.multiplyScalar(0.5);
+      }
+    });
   } else if (state === 'active') {
     av.group.rotation.x = 0;
   }
-  if (state === 'out') { /* eliminate() 处理 */ }
 };
 
 Scene3D.prototype.setThinking = function (playerId, on) {
@@ -873,10 +939,12 @@ Scene3D.prototype.resetAvatarStates = function () {
     if (av.dead) return;
     av.group.rotation.x = 0;
     av.group.position.y = 0;
-    av.group.traverse(function (o) {
-      if (o.material && o.material.color && o.userData._color != null) {
-        o.material.color.setHex(o.userData._color);
-        o.userData._color = null;
+    var mats = new Set();
+    av.group.traverse(function (o) { if (o.material) mats.add(o.material); });
+    mats.forEach(function (m) {
+      if (m.userData._foldColor != null) {
+        m.color.setHex(m.userData._foldColor);
+        m.userData._foldColor = null;
       }
     });
   });
