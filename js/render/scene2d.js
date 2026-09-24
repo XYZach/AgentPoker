@@ -742,6 +742,12 @@ Scene2D.prototype.project = function (v) {
   return { x: v.x, y: v.y };
 };
 Scene2D.prototype.anchorOf = function (playerId) { return this._anchors[playerId]; };
+Scene2D.prototype.avatarOf = function (playerId) { return this._avatars[playerId]; };
+/* 行动中高亮移到头像(铭牌默认隐藏, hover 才显示) */
+Scene2D.prototype.setAvatarTurn = function (playerId, on) {
+  var av = this._avatars[playerId];
+  if (av) av.classList.toggle('turn', !!on);
+};
 Scene2D.prototype.extraAnchor = function (key) { return this._extra[key]; };
 
 /* ---------- 主循环 ---------- */

@@ -61,6 +61,7 @@ function startGame(cfg) {
   PK.Hud.onAdviceApply = applyAdvice;
   App.scene.buildPlayers(App.engine.players);
   PK.Hud.updateNameplates(App.engine);
+  PK.Hud.bindPlateHover();
   updateLLMStatus();
 
   var modeName = { cash: PK.t('现金局'), tourney: PK.t('锦标赛'), squid: PK.t('鱿鱼场') }[cfg.mode];

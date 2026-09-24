@@ -442,6 +442,25 @@ Hud.initGame = function (engine, scene) {
 
 function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
 
+/* 2D 局: 铭牌默认隐藏, 鼠标悬停头像才显示(行动气泡时短暂亮出)。
+   须在 scene.buildPlayers 之后调用(initGame 时头像 DOM 尚未创建) */
+Hud.bindPlateHover = function () {
+  var self = this, scene = this.scene;
+  if (!scene || !scene.is2d || !scene.avatarOf) return;
+  this.engine.players.forEach(function (p) {
+    var av = scene.avatarOf(p.id), plate = self._plates[p.id];
+    if (!av || !plate) return;
+    plate.classList.add('hover-hide');
+    var t = null;
+    av.addEventListener('mouseenter', function () { clearTimeout(t); plate.classList.add('show'); });
+    av.addEventListener('mouseleave', function () {
+      t = setTimeout(function () { if (!plate._hot) plate.classList.remove('show'); }, 140);
+    });
+    plate.addEventListener('mouseenter', function () { clearTimeout(t); plate._hot = true; });
+    plate.addEventListener('mouseleave', function () { plate._hot = false; plate.classList.remove('show'); });
+  });
+};
+
 Hud.updateProjection = function () {
   var self = this, scene = this.scene, engine = this.engine;
   if (!scene || !engine) return;
@@ -527,6 +546,8 @@ Hud.updateNameplates = function (engine) {
     else if (p.sittingOut) stHtml = '<span class="st st-fold">' + PK.t('等待重买') + '</span>';
     st.innerHTML = stHtml;
     plate.classList.toggle('turn', engine.awaiting === p);
+    /* 铭牌默认隐藏时, 行动高亮同步到头像上 */
+    if (Hud.scene && Hud.scene.is2d && Hud.scene.setAvatarTurn) Hud.scene.setAvatarTurn(p.id, engine.awaiting === p);
     plate.classList.toggle('folded', !!p.folded && !!p.dealt);
     plate.classList.toggle('out', !!p.out);
   });
@@ -545,6 +566,12 @@ Hud.actionBubble = function (playerId, text, cls) {
   var b = $('.np-bubble', plate);
   b.textContent = text;
   b.className = 'np-bubble show ' + (cls || '');
+  /* 铭牌默认隐藏时, 行动气泡短暂亮出铭牌 */
+  if (plate.classList.contains('hover-hide')) {
+    plate.classList.add('show');
+    clearTimeout(plate._bt);
+    plate._bt = setTimeout(function () { if (!plate._hot) plate.classList.remove('show'); }, 1700);
+  }
   clearTimeout(b._t);
   b._t = setTimeout(function () { b.className = 'np-bubble'; }, 1700);
 };
