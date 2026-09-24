@@ -14,6 +14,7 @@ PK.CAT_NAMES = ['高牌', '一对', '两对', '三条', '顺子', '同花', '葫
 PK.cardRank = function (c) { return c >> 2; };
 PK.cardSuit = function (c) { return c & 3; };
 PK.cardName = function (c) { return PK.RANK_NAME[c >> 2] + PK.SUIT_CHARS[c & 3]; };
+PK.catName = function (cat) { return (typeof PK.t === 'function') ? PK.t(PK.CAT_NAMES[cat]) : PK.CAT_NAMES[cat]; };
 PK.cardsName = function (cs) { return cs.map(PK.cardName).join(' '); };
 
 PK.makeDeck = function () {
@@ -145,7 +146,7 @@ PK.evalDetailed = function (cards, n) {
         if (set[eq2] && !picks.some(function (p) { return ((p >> 2) === 14 ? 1 : (p >> 2)) === eq2; })) picks.push(cd2);
       }
     }
-    return { score: score, cat: cat, catName: PK.CAT_NAMES[cat], best5: picks };
+    return { score: score, cat: cat, catName: PK.catName(cat), best5: picks };
   }
   if (cat === 7) { need[ranks5[0]] = 4; need[ranks5[1]] = -1; }
   else if (cat === 6) { need[ranks5[0]] = 3; need[ranks5[1]] = -2; }
@@ -183,7 +184,7 @@ PK.evalDetailed = function (cards, n) {
   if (picks2.length !== 5) { // 兜底:任意 5 张
     picks2 = cards.slice(0, 5);
   }
-  return { score: score, cat: cat, catName: PK.CAT_NAMES[cat], best5: picks2 };
+  return { score: score, cat: cat, catName: PK.catName(cat), best5: picks2 };
 };
 
 /* ---------- Chen 起手牌公式(AI 翻牌前用) ---------- */

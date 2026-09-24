@@ -94,6 +94,42 @@ Hud.vignette = function (on, danger) {
 var STYLE_LIST = ['TAG', 'LAG', 'ROCK', 'FISH', 'BAL', 'MANIAC'];
 var NAME_POOL = ['老K', '阿豪', '小美', '汤圆', '教父', '影子', '阿May', '大壮', '皮蛋', '疯子蔡'];
 
+/* 语言切换 */
+function syncLangButtons() {
+  var label = PK.I18N.lang === 'zh' ? 'EN' : '中';
+  var a = $('#lobby-lang'), b = $('#tb-lang');
+  if (a) a.textContent = label;
+  if (b) b.textContent = label;
+}
+document.addEventListener('click', function (e) {
+  if (e.target && (e.target.id === 'lobby-lang' || e.target.id === 'tb-lang')) {
+    Hud.sfx('click');
+    PK.I18N.toggle();
+  }
+});
+PK.I18N.on(function () {
+  syncLangButtons();
+  if (Hud._aiNames) Hud._aiNames.length = 0; // 清缓存, 新名字用新语言
+  if (!$('#lobby').classList.contains('hidden')) {
+    if (Hud._buildRoster) Hud._buildRoster();
+    if (Hud._updateLLMHint) Hud._updateLLMHint();
+  }
+  if (Hud.engine && !$('#game').classList.contains('hidden')) {
+    Hud.updateNameplates(Hud.engine);
+    if (Hud._topbarInfo) Hud.setTopbar(Hud._topbarInfo);
+    if (Hud._modeKey) $('#tb-mode').textContent = { cash: PK.t('现金局'), tourney: PK.t('锦标赛'), squid: PK.t('鱿鱼场') }[Hud._modeKey];
+    var dl = $('#dealer-label'); if (dl) dl.textContent = PK.t('荷官');
+    var eq = $('#eq-sub'); if (eq && !eq.textContent) eq.textContent = PK.t('等待手牌…');
+    // 操作栏可见时刷新含金额的动态按钮文本(静态部分由 applyStatic 处理)
+    if (Hud._legal && !$('#actionbar').classList.contains('hidden')) {
+      var lg = Hud._legal;
+      if (lg.canCall) $('#btn-call').innerHTML = PK.t('跟注') + ' ' + PK.fmt(lg.callAmount) + (lg.callAmount >= lg.maxTo - lg.toCall ? ' (' + PK.t('全下') + ')' : '');
+      if (lg.canBet || lg.canRaise) $('#btn-raise').innerHTML = (lg.isRaise ? PK.t('加注到') + ' ' : PK.t('下注') + ' ') + '<b id="ab-raise-amt">' + PK.fmt(lg.minTo) + '</b>';
+    }
+    if (Hud.onSceneRefreshLang) Hud.onSceneRefreshLang();
+  }
+});
+
 Hud.initLobby = function (onStart) {
   var lobby = $('#lobby');
   var state = {
@@ -133,24 +169,26 @@ Hud.initLobby = function (onStart) {
       var row = document.createElement('div');
       row.className = 'roster-row';
       if (i === 0) {
-        row.innerHTML = '<span class="rr-seat">你</span>' +
-          '<input class="rr-name" id="hero-name" maxlength="8" value="' + (Hud._heroName || '我') + '">' +
-          '<span class="rr-style-info">由你操作 · AI 可给你建议</span>';
+        row.innerHTML = '<span class="rr-seat">' + PK.t('你') + '</span>' +
+          '<input class="rr-name" id="hero-name" maxlength="12" value="' + (Hud._heroName || PK.t('我')) + '">' +
+          '<span class="rr-style-info">' + PK.t('由你操作 · AI 可给你建议') + '</span>';
       } else {
         var name = Hud._aiNames && Hud._aiNames[i] ? Hud._aiNames[i] : pickName(used);
         var style = Hud._aiStyles && Hud._aiStyles[i] ? Hud._aiStyles[i] : STYLE_LIST[(i * 7 + 3) % 6];
         row.innerHTML = '<span class="rr-seat">AI ' + i + '</span>' +
-          '<input class="rr-name" maxlength="8" value="' + name + '">' +
+          '<input class="rr-name" maxlength="12" value="' + name + '">' +
           '<select class="rr-style">' + STYLE_LIST.map(function (s) {
-            return '<option value="' + s + '"' + (s === style ? ' selected' : '') + '>' + PK.AI_STYLES[s].label + ' · ' + PK.AI_STYLES[s].desc + '</option>';
+            return '<option value="' + s + '"' + (s === style ? ' selected' : '') + '>' + PK.t(PK.AI_STYLES[s].label) + ' · ' + PK.t(PK.AI_STYLES[s].desc) + '</option>';
           }).join('') + '</select>';
       }
       box.appendChild(row);
     }
   }
+  Hud._buildRoster = buildRoster;
   function pickName(used) {
+    var pool = PK.I18N.lang === 'en' ? PK.I18N.aiNames.en : NAME_POOL;
     for (var t = 0; t < 30; t++) {
-      var n = NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)];
+      var n = pool[Math.floor(Math.random() * pool.length)];
       if (!used[n]) { used[n] = 1; return n; }
     }
     return 'AI' + Math.floor(Math.random() * 99);
@@ -189,30 +227,31 @@ Hud.initLobby = function (onStart) {
   function saveLLM() { PK.LLM.save(); updateLLMHint(); }
   function updateLLMHint() {
     var ok = llm.enabled && llm.baseUrl && llm.apiKey && llm.model;
-    $('#llm-hint').textContent = ok ? '✓ 已启用 — AI 会给建议并参与人机决策' : '未启用 — 人机仅按风格+胜率+随机性决策';
+    $('#llm-hint').textContent = ok ? PK.t('✓ 已启用 — AI 会给建议并参与人机决策') : PK.t('未启用 — 人机仅按风格+胜率+随机性决策');
   }
+  Hud._updateLLMHint = updateLLMHint;
   $('#llm-test').addEventListener('click', async function () {
     var btn = this;
-    btn.disabled = true; btn.textContent = '测试中…';
+    btn.disabled = true; btn.textContent = PK.t('测试中…');
     try {
       llm.baseUrl = $('#llm-base').value.trim(); llm.apiKey = $('#llm-key').value.trim(); llm.model = $('#llm-model').value.trim();
       PK.LLM.save();
       await PK.LLM.test();
-      Hud.toast('✓ 连接成功 (' + PK.LLM.stats.lastLatency + 'ms)', 'ok');
+      Hud.toast(PK.t('✓ 连接成功') + ' (' + PK.LLM.stats.lastLatency + 'ms)', 'ok');
     } catch (e) {
       Hud.toast('✗ ' + String(e.message || e).slice(0, 120), 'err', 4200);
     }
-    btn.disabled = false; btn.textContent = '测试连接';
+    btn.disabled = false; btn.textContent = PK.t('测试连接');
   });
   updateLLMHint();
 
   $('#btn-start').addEventListener('click', function () {
     Hud.sfx('click');
-    Hud._heroName = ($('#hero-name') || {}).value || '我';
+    Hud._heroName = ($('#hero-name') || {}).value || PK.t('我');
     Hud._aiNames = []; Hud._aiStyles = [];
     var roster = [];
     $$('#roster-list .roster-row').forEach(function (row, i) {
-      var name = $('.rr-name', row).value.trim() || (i === 0 ? '我' : 'AI' + i);
+      var name = $('.rr-name', row).value.trim() || (i === 0 ? PK.t('我') : 'AI' + i);
       if (i === 0) roster.push({ name: name, isHuman: true, styleKey: 'BAL' });
       else {
         var st = $('.rr-style', row).value;
@@ -261,8 +300,9 @@ Hud.initGame = function (engine, scene) {
   this._plates = {};
   this._betLabels = {};
 
-  var modeName = { cash: '现金局', tourney: '锦标赛', squid: '鱿鱼场' }[engine.cfg.mode];
+  var modeName = { cash: PK.t('现金局'), tourney: PK.t('锦标赛'), squid: PK.t('鱿鱼场') }[engine.cfg.mode];
   document.body.dataset.mode = engine.cfg.mode;
+  Hud._modeKey = engine.cfg.mode;
   $('#tb-mode').textContent = modeName;
   $('#tb-deadline-wrap').classList.toggle('hidden', engine.cfg.mode !== 'squid');
 
@@ -270,8 +310,8 @@ Hud.initGame = function (engine, scene) {
     var plate = document.createElement('div');
     plate.className = 'nplate';
     plate.id = 'np-' + p.id;
-    var styleTag = p.isHuman ? '<span class="np-style hero-tag">你</span>' :
-      '<span class="np-style">' + (PK.AI_STYLES[p.styleKey] || { label: p.styleKey }).label + '</span>';
+    var styleTag = p.isHuman ? '<span class="np-style hero-tag">' + PK.t('你') + '</span>' :
+      '<span class="np-style">' + PK.t((PK.AI_STYLES[p.styleKey] || { label: p.styleKey }).label) + '</span>';
     plate.innerHTML =
       '<div class="np-bubble"></div>' +
       '<div class="np-row1"><span class="np-name">' + esc(p.name) + '</span>' + styleTag + '</div>' +
@@ -298,7 +338,7 @@ Hud.initGame = function (engine, scene) {
   var dealerLabel = document.createElement('div');
   dealerLabel.className = 'dealer-label';
   dealerLabel.id = 'dealer-label';
-  dealerLabel.textContent = '荷官';
+  dealerLabel.textContent = PK.t('荷官');
   $('#labels').appendChild(dealerLabel);
 
   // 记牌器(默认折叠, 点标题展开)
@@ -344,7 +384,8 @@ Hud.initGame = function (engine, scene) {
   $$('#tb-camera button').forEach(function (btn) {
     btn.onclick = function () { Hud.sfx('click'); scene.cameraPreset(btn.dataset.cam); };
   });
-  $('#tb-camera').classList.toggle('hidden', !!scene.is2d); // 2D 模式无相机
+  var camWrap = $('#tb-camera');
+  if (camWrap) camWrap.classList.toggle('hidden', !!scene.is2d); // 2D 模式无相机
   $('#tb-menu').onclick = function () { if (Hud.onMenu) Hud.onMenu(); };
   $('#tb-help').onclick = function () { Hud.showHelp(); };
   $('#log-toggle').onclick = function () { $('#log-panel').classList.toggle('open'); };
@@ -385,7 +426,7 @@ Hud.updateProjection = function () {
     if (ppt) {
       var pot = engine.potTotal();
       pl.style.display = pot > 0 ? '' : 'none';
-      pl.textContent = '彩池 ' + PK.fmt(pot);
+      pl.textContent = PK.t('彩池') + ' ' + PK.fmt(pot);
       pl.style.transform = 'translate(-50%,-50%) translate(' + ppt.x.toFixed(1) + 'px,' + ppt.y.toFixed(1) + 'px)';
     }
   }
@@ -404,7 +445,7 @@ Hud.updateProjection = function () {
     var gl = $('#piggy-label');
     if (gpt) {
       gl.style.display = '';
-      gl.innerHTML = '🐷 奖池 ' + PK.fmt(engine.piggyTotal);
+      gl.innerHTML = '🐷 ' + PK.t('奖池') + ' ' + PK.fmt(engine.piggyTotal);
       gl.style.transform = 'translate(-50%,-50%) translate(' + gpt.x.toFixed(1) + 'px,' + gpt.y.toFixed(1) + 'px)';
     }
   }
@@ -415,19 +456,21 @@ Hud.updateNameplates = function (engine) {
     var plate = Hud._plates[p.id];
     if (!plate) return;
     $('.np-stack', plate).textContent = PK.fmt(p.stack);
+    var styleEl = $('.np-style', plate);
+    if (!p.isHuman && styleEl && PK.AI_STYLES[p.styleKey]) styleEl.textContent = PK.t(PK.AI_STYLES[p.styleKey].label);
     var badges = $('.np-badges', plate);
     var html = '';
     if (engine.dealerIdx === p.id && p.dealt) html += '<span class="bd bd-d">D</span>';
-    if (Hud._blindBadges[p.id]) html += '<span class="bd bd-blind">' + Hud._blindBadges[p.id] + '</span>';
+    if (Hud._blindBadges[p.id]) html += '<span class="bd bd-blind">' + PK.t(Hud._blindBadges[p.id]) + '</span>';
     if (p.bounty > 0) html += '<span class="bd bd-b">💀' + p.bounty + '</span>';
     if (p.rebuys > 0) html += '<span class="bd bd-r">↻' + p.rebuys + '</span>';
     badges.innerHTML = html;
     var st = $('.np-status', plate);
     var stHtml = '';
-    if (p.out) stHtml = '<span class="st st-out">第' + p.place + '名 出局</span>';
-    else if (p.folded && p.dealt) stHtml = '<span class="st st-fold">弃牌</span>';
-    else if (p.allIn) stHtml = '<span class="st st-allin">全下</span>';
-    else if (p.sittingOut) stHtml = '<span class="st st-fold">等待重买</span>';
+    if (p.out) stHtml = '<span class="st st-out">' + PK.t('第') + p.place + PK.t('名') + ' ' + PK.t('出局') + '</span>';
+    else if (p.folded && p.dealt) stHtml = '<span class="st st-fold">' + PK.t('弃牌') + '</span>';
+    else if (p.allIn) stHtml = '<span class="st st-allin">' + PK.t('全下') + '</span>';
+    else if (p.sittingOut) stHtml = '<span class="st st-fold">' + PK.t('等待重买') + '</span>';
     st.innerHTML = stHtml;
     plate.classList.toggle('turn', engine.awaiting === p);
     plate.classList.toggle('folded', !!p.folded && !!p.dealt);
@@ -446,13 +489,17 @@ Hud.actionBubble = function (playerId, text, cls) {
 };
 
 Hud.setTopbar = function (info) {
-  $('#tb-hand').textContent = '第 ' + info.handNo + ' 手';
-  if (info.mode === 'cash') $('#tb-level').textContent = '盲注 ' + info.sb + '/' + info.bb;
-  else $('#tb-level').textContent = '级别 ' + info.level + ' · 盲注 ' + info.sb + '/' + info.bb + (info.ante ? ' 前注' + info.ante : '');
+  Hud._topbarInfo = info;
+  $('#tb-hand').textContent = PK.I18N.lang === 'en' ? 'Hand ' + info.handNo : '第 ' + info.handNo + ' 手';
+  if (info.mode === 'cash') $('#tb-level').textContent = PK.t('盲注') + ' ' + info.sb + '/' + info.bb;
+  else $('#tb-level').textContent = PK.I18N.lang === 'en'
+    ? 'Lv ' + info.level + ' · ' + info.sb + '/' + info.bb + (info.ante ? ' ante ' + info.ante : '')
+    : '级别 ' + info.level + ' · ' + PK.t('盲注') + ' ' + info.sb + '/' + info.bb + (info.ante ? ' ' + PK.t('前注') + info.ante : '');
   if (info.mode === 'squid') {
     var d = info.handsUntilDeadline;
     var el = $('#tb-deadline');
-    el.textContent = d === 1 ? '⏰ 下一手淘汰!' : '⏱ 淘汰时钟 ' + d + ' 手';
+    el.textContent = d === 1 ? PK.t('⏰ 下一手淘汰!')
+      : (PK.I18N.lang === 'en' ? '⏱ Clock: ' + d + ' hands' : '⏱ 淘汰时钟 ' + d + ' 手');
     el.className = d <= 1 ? 'danger' : '';
   }
 };
@@ -481,7 +528,7 @@ Hud.updateEquity = function (res, ctx) {
   if (!res) {
     $('#eq-ring').style.background = 'conic-gradient(#39424e 0turn, #232a33 0turn)';
     $('#eq-num').textContent = '—';
-    $('#eq-sub').textContent = '等待手牌…';
+    $('#eq-sub').textContent = PK.t('等待手牌…');
     $('#eq-bar-win').style.width = '0%';
     $('#eq-bar-tie').style.width = '0%';
     $('#eq-bar-lose').style.width = '0%';
@@ -492,7 +539,9 @@ Hud.updateEquity = function (res, ctx) {
   var color = win > 0.6 ? '#2ecc71' : win > 0.4 ? '#f1c40f' : '#e74c3c';
   $('#eq-ring').style.background = 'conic-gradient(' + color + ' 0turn ' + deg + 'deg, #232a33 ' + deg + 'deg 360deg)';
   $('#eq-num').textContent = Math.round(win * 100) + '%';
-  $('#eq-sub').textContent = 'vs ' + ctx.nOpp + ' 名对手 · ' + res.iters + ' 次模拟';
+  $('#eq-sub').textContent = PK.I18N.lang === 'en'
+    ? 'vs ' + ctx.nOpp + ' opponents · ' + res.iters + ' sims'
+    : 'vs ' + ctx.nOpp + ' 名对手 · ' + res.iters + ' 次模拟';
   $('#eq-bar-win').style.width = (win * 100).toFixed(1) + '%';
   $('#eq-bar-tie').style.width = (tie * 100).toFixed(1) + '%';
   $('#eq-bar-lose').style.width = ((1 - win - tie) * 100).toFixed(1) + '%';
@@ -500,12 +549,15 @@ Hud.updateEquity = function (res, ctx) {
   $('#eq-bar-tie-num').textContent = (tie * 100).toFixed(1) + '%';
   $('#eq-bar-lose-num').textContent = ((1 - win - tie) * 100).toFixed(1) + '%';
   if (ctx.potOdds != null && ctx.potOdds > 0) {
-    $('#eq-odds').innerHTML = '底池赔率: 需 <b>' + (ctx.potOdds * 100).toFixed(1) + '%</b> 胜率' +
-      (win > ctx.potOdds ? ' <span class="ok-text">✓ 值得跟</span>' : ' <span class="bad-text">✗ 跟注亏</span>');
+    $('#eq-odds').innerHTML = PK.I18N.lang === 'en'
+      ? 'Pot odds: need <b>' + (ctx.potOdds * 100).toFixed(1) + '%</b>' +
+        (win > ctx.potOdds ? ' <span class="ok-text">' + PK.t('✓ 值得跟') + '</span>' : ' <span class="bad-text">' + PK.t('✗ 跟注亏') + '</span>')
+      : '底池赔率: 需 <b>' + (ctx.potOdds * 100).toFixed(1) + '%</b> ' + PK.t('胜率') +
+        (win > ctx.potOdds ? ' <span class="ok-text">' + PK.t('✓ 值得跟') + '</span>' : ' <span class="bad-text">' + PK.t('✗ 跟注亏') + '</span>');
   } else {
-    $('#eq-odds').textContent = '当前无需跟注';
+    $('#eq-odds').textContent = PK.t('当前无需跟注');
   }
-  if (ctx.madeHand) $('#eq-made').textContent = '当前成牌: ' + ctx.madeHand;
+  if (ctx.madeHand) $('#eq-made').textContent = PK.t('当前成牌: ') + ctx.madeHand;
   else $('#eq-made').textContent = '';
 };
 
@@ -547,11 +599,11 @@ Hud.showActionbar = function (legal, heroName) {
   $('#btn-fold').classList.toggle('disabled', !legal.canFold);
   $('#btn-check').classList.toggle('hidden', !legal.canCheck);
   $('#btn-call').classList.toggle('hidden', !legal.canCall);
-  $('#btn-call').innerHTML = '跟注 ' + PK.fmt(legal.callAmount) + (legal.callAmount >= legal.maxTo - legal.toCall ? ' (全下)' : '');
+  $('#btn-call').innerHTML = PK.t('跟注') + ' ' + PK.fmt(legal.callAmount) + (legal.callAmount >= legal.maxTo - legal.toCall ? ' (' + PK.t('全下') + ')' : '');
   var canAggro = legal.canBet || legal.canRaise;
   $('#btn-raise').classList.toggle('hidden', !canAggro);
   $('#ab-raise-row').classList.toggle('hidden', !canAggro);
-  $('#btn-raise').innerHTML = (legal.isRaise ? '加注到 ' : '下注 ') + '<b id="ab-raise-amt">' + PK.fmt(legal.minTo) + '</b>';
+  $('#btn-raise').innerHTML = (legal.isRaise ? PK.t('加注到') + ' ' : PK.t('下注') + ' ') + '<b id="ab-raise-amt">' + PK.fmt(legal.minTo) + '</b>';
   $('#btn-allin').classList.toggle('hidden', !canAggro);
 
   var slider = $('#ab-slider');
@@ -641,14 +693,14 @@ Hud.clearBlindBadges = function () {
 Hud.showAdvice = function (data) {
   var box = $('#advice-box');
   box.classList.remove('hidden');
-  var actName = { fold: '弃牌', check: '过牌', call: '跟注', bet: '下注', raise: '加注', allin: '全下' }[data.action] || data.action;
+  var actName = PK.t({ fold: '弃牌', check: '过牌', call: '跟注', bet: '下注', raise: '加注', allin: '全下' }[data.action] || data.action);
   var amt = data.amount ? ' ' + PK.fmt(data.amount) : '';
   box.innerHTML =
-    '<div class="adv-head">🤖 AI 建议 <span class="adv-lat">' + (data.latency || '') + '</span></div>' +
+    '<div class="adv-head">🤖 ' + PK.t('AI 建议') + ' <span class="adv-lat">' + (data.latency || '') + '</span></div>' +
     '<div class="adv-action">' + actName + amt + '</div>' +
     '<div class="adv-reason">' + esc(data.reason || '') + '</div>' +
     '<div class="adv-conf"><div class="adv-conf-bar" style="width:' + (data.confidence || 0) + '%"></div></div>' +
-    '<div class="adv-foot">置信度 ' + (data.confidence || 0) + '%<button id="adv-apply">采纳</button></div>';
+    '<div class="adv-foot">' + PK.t('置信度') + ' ' + (data.confidence || 0) + '%<button id="adv-apply">' + PK.t('采纳') + '</button></div>';
   $('#adv-apply').onclick = function () {
     if (Hud.onAdviceApply) Hud.onAdviceApply(data);
   };
@@ -656,7 +708,7 @@ Hud.showAdvice = function (data) {
 Hud.showAdviceLoading = function () {
   var box = $('#advice-box');
   box.classList.remove('hidden');
-  box.innerHTML = '<div class="adv-head">🤖 AI 建议</div><div class="adv-loading"><span class="spinner"></span>思考中…</div>';
+  box.innerHTML = '<div class="adv-head">🤖 ' + PK.t('AI 建议') + '</div><div class="adv-loading"><span class="spinner"></span>' + PK.t('思考中…') + '</div>';
 };
 Hud.clearAdvice = function () { $('#advice-box').classList.add('hidden'); };
 Hud.setLLMStatus = function (state, text) {
@@ -685,8 +737,8 @@ Hud.modal = function (html, opts) {
 
 Hud.showRebuy = function (playerName) {
   return this.modal(
-    '<h3>筹码耗尽</h3><p>' + esc(playerName) + ' 的筹码已输光。重新买入回到牌桌吗？</p>' +
-    '<div class="modal-btns"><button class="btn primary" data-close="yes">重新买入</button><button class="btn" data-close="no">离座(结束场次)</button></div>'
+    '<h3>' + PK.t('筹码耗尽') + '</h3><p>' + esc(playerName) + PK.t('的筹码已输光。重新买入回到牌桌吗？') + '</p>' +
+    '<div class="modal-btns"><button class="btn primary" data-close="yes">' + PK.t('重新买入') + '</button><button class="btn" data-close="no">' + PK.t('离座(结束场次)') + '</button></div>'
   );
 };
 
@@ -694,24 +746,24 @@ Hud.showResults = function (data) {
   var engine = this.engine;
   var html = '<h3>' + data.title + '</h3>';
   html += '<div class="res-sub">' + data.sub + '</div>';
-  html += '<table class="res-table"><tr><th></th><th>玩家</th><th>' + (data.mode === 'cash' ? '盈亏' : '名次/奖金') + '</th><th>手数</th><th>入池率</th></tr>';
+  html += '<table class="res-table"><tr><th></th><th>' + PK.t('玩家') + '</th><th>' + (data.mode === 'cash' ? PK.t('盈亏') : PK.t('名次/奖金')) + '</th><th>' + PK.t('手数') + '</th><th>' + PK.t('入池率') + '</th></tr>';
   data.rows.forEach(function (r) {
     html += '<tr class="' + (r.isHero ? 'hero-row' : '') + '"><td>' + r.medal + '</td><td>' + esc(r.name) + (r.styleTag ? ' <span class="np-style">' + r.styleTag + '</span>' : '') + '</td><td>' + r.main + '</td><td>' + r.hands + '</td><td>' + r.vpip + '</td></tr>';
   });
   html += '</table>';
-  html += '<div class="modal-btns"><button class="btn primary" data-close="restart">再来一局</button><button class="btn" data-close="lobby">回到大厅</button></div>';
+  html += '<div class="modal-btns"><button class="btn primary" data-close="restart">' + PK.t('再来一局') + '</button><button class="btn" data-close="lobby">' + PK.t('回到大厅') + '</button></div>';
   return this.modal(html, { cls: 'modal-results' });
 };
 
 Hud.showHelp = function () {
-  var html = '<h3>玩法与功能</h3><div class="help-body">' +
-    '<p><b>三种模式</b>:现金局(盲注固定/随时重买) · 锦标赛(盲注升级/打到只剩一人/前三名分奖) · 鱿鱼场(淘汰时钟每 N 手淘汰最短码, 最后一手全员强制摊牌, 击倒对手得赏金, 奖池存进小猪罐 🐷)。</p>' +
-    '<p><b>记牌器</b>(左栏):绿色=公共牌, 蓝色=你的手牌, 红色=已弃牌(开启"亮弃牌"时)。实时统计已见牌。</p>' +
-    '<p><b>胜率</b>(右栏):蒙特卡洛模拟 vs 场上对手数, 已见死牌会从模拟中剔除; 同时显示底池赔率参考。</p>' +
-    '<p><b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。</p>' +
-    '<p><b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。</p>' +
-    '<p class="dim">公平性: AI 与建议只用公开信息+自身手牌, 绝不偷看牌堆。</p>' +
-    '</div><div class="modal-btns"><button class="btn primary" data-close="ok">开始游戏</button></div>';
+  var html = '<h3>' + PK.t('玩法与功能') + '</h3><div class="help-body">' +
+    '<p>' + PK.t('<b>三种模式</b>:现金局(盲注固定/随时重买) · 锦标赛(盲注升级/打到只剩一人/前三名分奖) · 鱿鱼场(淘汰时钟每 N 手淘汰最短码, 最后一手全员强制摊牌, 击倒对手得赏金, 奖池存进小猪罐 🐷)。') + '</p>' +
+    '<p>' + PK.t('<b>记牌器</b>(左栏):绿色=公共牌, 蓝色=你的手牌, 红色=已弃牌(开启"亮弃牌"时)。实时统计已见牌。') + '</p>' +
+    '<p>' + PK.t('<b>胜率</b>(右栏):蒙特卡洛模拟 vs 场上对手数, 已见死牌会从模拟中剔除; 同时显示底池赔率参考。') + '</p>' +
+    '<p>' + PK.t('<b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。') + '</p>' +
+    '<p>' + PK.t('<b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。') + '</p>' +
+    '<p class="dim">' + PK.t('公平性: AI 与建议只用公开信息+自身手牌, 绝不偷看牌堆。') + '</p>' +
+    '</div><div class="modal-btns"><button class="btn primary" data-close="ok">' + PK.t('开始游戏') + '</button></div>';
   return this.modal(html, { cls: 'modal-help' });
 };
 

@@ -44,6 +44,9 @@ function startGame(cfg) {
   PK.Hud.showGame(); // 先显示容器, 否则 #stage 尺寸为 0
   App.scene = new PK.Scene2D(stage, { mode: cfg.mode });
   App.scene.setSpeed(App.speed);
+  PK.Hud.onSceneRefreshLang = function () {
+    if (App.scene && App.scene.refreshLang) App.scene.refreshLang();
+  };
   PK.Hud.initGame(App.engine, App.scene);
   PK.Hud.onSpeedChange = function (s) { App.speed = s; App.scene.setSpeed(s); };
   PK.Hud.onMenu = showMenu;
@@ -53,9 +56,10 @@ function startGame(cfg) {
   PK.Hud.updateNameplates(App.engine);
   updateLLMStatus();
 
-  var modeName = { cash: '现金局', tourney: '锦标赛', squid: '鱿鱼场' }[cfg.mode];
-  PK.Hud.banner(modeName + ' 开始', cfg.roster.length + ' 名玩家 · 起始筹码 ' + PK.fmt(cfg.startStack), 'info', 2200);
-  PK.Hud.log('<b>—— ' + modeName + '开始 ——</b>', 'sys');
+  var modeName = { cash: PK.t('现金局'), tourney: PK.t('锦标赛'), squid: PK.t('鱿鱼场') }[cfg.mode];
+  var isEn = PK.I18N.lang === 'en';
+  PK.Hud.banner(modeName + (isEn ? ' started' : ' 开始'), cfg.roster.length + (isEn ? ' players · stack ' : ' 名玩家 · 起始筹码 ') + PK.fmt(cfg.startStack), 'info', 2200);
+  PK.Hud.log('<b>—— ' + modeName + (isEn ? ' started' : '开始') + ' ——</b>', 'sys');
 
   gameLoop().catch(function (e) {
     console.error(e);
@@ -178,7 +182,7 @@ async function handleEvent(ev) {
       await scene.moveDealerButton(ev.dealerId);
       if (ev.forced) { /* forcedStart 事件单独处理 */ }
       if (engine.cfg.mode === 'squid' && engine.handsUntilDeadline() === 1) {
-        PK.Hud.banner('⏰ 淘汰时钟', '本手结束后淘汰最短码!', 'danger', 1600);
+        PK.Hud.banner('⏰ ' + PK.t('淘汰时钟'), PK.t('本手结束后淘汰最短码!'), 'danger', 1600);
       }
       break;
     }
@@ -188,9 +192,9 @@ async function handleEvent(ev) {
       PK.Hud.sfx('chip');
       PK.Hud.updateNameplates(engine);
       if (ev.kind === 'ante' || ev.kind === 'sb' || ev.kind === 'bb') {
-        var kindName = { ante: '前注', sb: '小盲', bb: '大盲' }[ev.kind];
+        var kindName = { ante: PK.t('前注'), sb: PK.t('小盲'), bb: PK.t('大盲') }[ev.kind];
         if (ev.kind !== 'ante') {
-          PK.Hud.setBlindBadge(ev.playerId, kindName);
+          PK.Hud.setBlindBadge(ev.playerId, { sb: '小盲', bb: '大盲' }[ev.kind]); // 存 key, 渲染时按语言翻译
           PK.Hud.updateNameplates(engine);
         }
         PK.Hud.actionBubble(ev.playerId, kindName + ' ' + PK.fmt(ev.amount), 'post');
@@ -211,10 +215,10 @@ async function handleEvent(ev) {
     }
     case 'action': {
       var pl = engine.players[ev.playerId];
-      var names = { fold: '弃牌', check: '过牌', call: '跟注', bet: '下注', raise: '加注', allin: '全下' };
+      var names = { fold: PK.t('弃牌'), check: PK.t('过牌'), call: PK.t('跟注'), bet: PK.t('下注'), raise: PK.t('加注'), allin: PK.t('全下') };
       var text = names[ev.action];
       if (ev.action === 'call' || ev.action === 'bet' || ev.action === 'raise') text += ' ' + PK.fmt(ev.amount || ev.to || 0);
-      if (ev.action === 'raise') text = '加注到 ' + PK.fmt(ev.to);
+      if (ev.action === 'raise') text = PK.t('加注到') + ' ' + PK.fmt(ev.to);
       PK.Hud.actionBubble(ev.playerId, text, ev.action);
       var sounds = { fold: 'fold', check: 'check', call: 'chip', bet: 'chip', raise: 'chip', allin: 'chip' };
       PK.Hud.sfx(sounds[ev.action]);
@@ -232,7 +236,7 @@ async function handleEvent(ev) {
     }
     case 'foldShow': {
       App.deadCards = App.deadCards.concat(ev.cards);
-      PK.Hud.log('<span class="dim">' + engine.players[ev.playerId].name + ' 亮牌弃牌: ' + PK.cardsName(ev.cards) + '</span>', 'dim');
+      PK.Hud.log('<span class="dim">' + engine.players[ev.playerId].name + PK.t('亮牌弃牌: ') + PK.cardsName(ev.cards) + '</span>', 'dim');
       updateTrackerNow();
       break;
     }
@@ -241,7 +245,7 @@ async function handleEvent(ev) {
       scene.setPot(engine.potTotal());
       await scene.dealCommunity(ev.cards);
       ev.cards.forEach(function (c) { PK.Hud.sfx('flip'); });
-      var streetName = ['翻牌前', '翻牌 🌟', '转牌', '河牌'][ev.street];
+      var streetName = [PK.t('翻牌前'), PK.t('翻牌 🌟'), PK.t('转牌'), PK.t('河牌')][ev.street];
       PK.Hud.log('<b>—— ' + streetName + ' ' + PK.cardsName(engine.board) + ' ——</b>', 'street');
       PK.Hud.updateNameplates(engine);
       updateTrackerNow();
@@ -252,7 +256,7 @@ async function handleEvent(ev) {
     case 'forcedStart': {
       PK.Hud.sfx('alarm');
       PK.Hud.vignette(true, true);
-      PK.Hud.banner('⚡ 最后时刻', '鱿鱼规则: 全员强制全下摊牌!', 'danger', 2600);
+      PK.Hud.banner('⚡ ' + PK.t('最后时刻'), PK.t('鱿鱼规则: 全员强制全下摊牌!'), 'danger', 2600);
       scene.setCinematic(true);
       await PK.TWEEN.wait(1000);
       break;
@@ -274,7 +278,7 @@ async function handleEvent(ev) {
       PK.Hud.showRunoutBars(entries.map(function (e, idx) {
         return { playerId: e.playerId, name: e.name, cards: e.cards, win: res[idx].win, tie: res[idx].tie };
       }));
-      PK.Hud.log('<b>—— 全下摊牌 ——</b>', 'street');
+      PK.Hud.log('<b>—— ' + PK.t('全下摊牌') + ' ——</b>', 'street');
       await PK.TWEEN.wait(700);
       break;
     }
@@ -299,9 +303,11 @@ async function handleEvent(ev) {
         scene.highlightCards(main.hand[0].best5);
       }
       var wNames = ev.pots.map(function (pot) {
-        return pot.winners.map(function (pid) { return engine.players[pid].name + (pot.winners.length > 1 ? '(平分)' : ''); }).join(' & ');
+        return pot.winners.map(function (pid) { return engine.players[pid].name + (pot.winners.length > 1 ? PK.t('平分') : ''); }).join(' & ');
       }).join(', ');
-      PK.Hud.banner('摊牌', wNames + ' 以 ' + (main && main.hand[0] ? main.hand[0].catName : '') + ' 获胜', 'win', 2200);
+      PK.Hud.banner(PK.t('摊牌'), PK.I18N.lang === 'en'
+        ? wNames + ' wins with ' + (main && main.hand[0] ? main.hand[0].catName : '')
+        : wNames + ' 以 ' + (main && main.hand[0] ? main.hand[0].catName : '') + PK.t('获胜'), 'win', 2200);
       await PK.TWEEN.wait(900);
       break;
     }
@@ -314,15 +320,15 @@ async function handleEvent(ev) {
       if (ev.amount > winner.startStack * 0.6 || ev.amount > engine.bb * 60) {
         scene.confetti(ev.playerId);
       }
-      PK.Hud.log('<b>🏆 ' + winner.name + ' 赢得 ' + PK.fmt(ev.amount) + '</b>' + (ev.uncontested ? '(无人跟注)' : ''), 'win');
+      PK.Hud.log('<b>🏆 ' + winner.name + ' ' + PK.t('赢得') + ' ' + PK.fmt(ev.amount) + '</b>' + (ev.uncontested ? '(' + PK.t('无人跟注') + ')' : ''), 'win');
       PK.Hud.updateNameplates(engine);
       break;
     }
     case 'bounty': {
       var killer = engine.players[ev.playerId];
       PK.Hud.sfx('coin');
-      PK.Hud.actionBubble(ev.playerId, '💀 赏金 +' + PK.fmt(ev.amount), 'bounty');
-      PK.Hud.log('<b>💀 ' + killer.name + ' 击倒 ' + engine.players[ev.victimId].name + ',获得赏金 ' + PK.fmt(ev.amount) + '</b>', 'bounty');
+      PK.Hud.actionBubble(ev.playerId, '💀 ' + PK.t('赏金') + ' +' + PK.fmt(ev.amount), 'bounty');
+      PK.Hud.log('<b>💀 ' + killer.name + ' ' + PK.t('击倒') + ' ' + engine.players[ev.victimId].name + ', ' + PK.t('获得赏金') + ' ' + PK.fmt(ev.amount) + '</b>', 'bounty');
       PK.Hud.updateNameplates(engine);
       break;
     }
@@ -331,11 +337,11 @@ async function handleEvent(ev) {
       PK.Hud.sfx('elim');
       scene.piggyCoins(ev.playerId, engine.cfg.startStack);
       await scene.eliminate(ev.playerId, engine.cfg.mode === 'squid');
-      PK.Hud.banner('💀 ' + v.name + ' 被淘汰', '第 ' + ev.place + ' 名', 'danger', 1900);
-      PK.Hud.log('<b>💀 ' + v.name + ' 出局(第' + ev.place + '名)</b>', 'elim');
+      PK.Hud.banner('💀 ' + v.name + ' ' + PK.t('被淘汰'), PK.t('第') + ' ' + ev.place + ' ' + PK.t('名'), 'danger', 1900);
+      PK.Hud.log('<b>💀 ' + v.name + ' ' + PK.t('出局(第') + ev.place + PK.t('名') + ')</b>', 'elim');
       if (v.isHuman) {
         App.fastSpectate = true;
-        PK.Hud.toast('你已被淘汰 — 快进模拟剩余牌局…', 'warn', 4000);
+        PK.Hud.toast(PK.t('你已被淘汰 — 快进模拟剩余牌局…'), 'warn', 4000);
       }
       PK.Hud.updateNameplates(engine);
       break;
@@ -346,18 +352,22 @@ async function handleEvent(ev) {
       PK.Hud.sfx('coin');
       scene.piggyCoins(ev.playerId, ev.amount);
       await scene.eliminate(ev.playerId, true);
-      PK.Hud.banner('⏰ 时限到!', dv.name + ' 码量最短被强制淘汰 · 奖池 +' + PK.fmt(ev.amount), 'danger', 2600);
-      PK.Hud.log('<b>⏰ 鱿鱼时钟: ' + dv.name + ' 被强制淘汰, 存钱罐 +' + PK.fmt(ev.amount) + '</b>', 'elim');
+      PK.Hud.banner('⏰ ' + PK.t('时限到!'), PK.I18N.lang === 'en'
+        ? dv.name + ' was force-eliminated (shortest stack) · pool +' + PK.fmt(ev.amount)
+        : dv.name + PK.t('码量最短被强制淘汰 · 奖池 +') + PK.fmt(ev.amount), 'danger', 2600);
+      PK.Hud.log('<b>⏰ ' + PK.t('鱿鱼时钟: ') + dv.name + PK.t('被强制淘汰, 存钱罐 +') + PK.fmt(ev.amount) + '</b>', 'elim');
       if (dv.isHuman) {
         App.fastSpectate = true;
-        PK.Hud.toast('你被鱿鱼时钟淘汰了…', 'warn', 4000);
+        PK.Hud.toast(PK.t('你被鱿鱼时钟淘汰了…'), 'warn', 4000);
       }
       PK.Hud.updateNameplates(engine);
       break;
     }
     case 'levelUp': {
       PK.Hud.sfx('level');
-      PK.Hud.banner('盲注升级', '第 ' + ev.level + ' 级 · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (前注 ' + ev.ante + ')' : ''), 'info', 2000);
+      PK.Hud.banner(PK.t('盲注升级'), PK.I18N.lang === 'en'
+        ? 'Level ' + ev.level + ' · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (ante ' + ev.ante + ')' : '')
+        : '第 ' + ev.level + ' 级 · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (' + PK.t('前注') + ' ' + ev.ante + ')' : ''), 'info', 2000);
       PK.Hud.setTopbar({ mode: engine.cfg.mode, handNo: engine.handNo, level: ev.level, sb: ev.sb, bb: ev.bb, ante: ev.ante, handsUntilDeadline: engine.handsUntilDeadline() });
       break;
     }
@@ -367,7 +377,7 @@ async function handleEvent(ev) {
     }
     case 'rebuy': {
       var rp = engine.players[ev.playerId];
-      PK.Hud.log(rp.name + ' 重新买入 ' + PK.fmt(ev.amount), 'sys');
+      PK.Hud.log(rp.name + ' ' + PK.t('重新买入') + ' ' + PK.fmt(ev.amount), 'sys');
       PK.Hud.updateNameplates(engine);
       break;
     }
@@ -376,7 +386,7 @@ async function handleEvent(ev) {
       PK.Hud.vignette(false);
       var res = ev.result || {};
       var txt = (res.winners || []).map(function (w) { return engine.players[w.playerId].name + ' +' + PK.fmt(w.amount); }).join(', ');
-      if (txt) PK.Hud.banner('本手结束', txt, 'info', 1400);
+      if (txt) PK.Hud.banner(PK.t('本手结束'), txt, 'info', 1400);
       PK.Hud.hideRunoutBars();
       PK.Hud.updateNameplates(engine);
       updateLLMStatus();
@@ -464,25 +474,25 @@ async function requestAdvice() {
   var engine = App.engine;
   var hero = engine.players[App.heroId];
   if (!PK.LLM.ready()) {
-    PK.Hud.toast('请先在大厅配置大模型 API', 'warn');
+    PK.Hud.toast(PK.t('请先在大厅配置大模型 API'), 'warn');
     return;
   }
   if (engine.awaiting !== hero) {
-    PK.Hud.toast('等待你的行动回合…', 'warn');
+    PK.Hud.toast(PK.t('等待你的行动回合…'), 'warn');
     return;
   }
   PK.Hud.showAdviceLoading();
-  PK.Hud.setLLMStatus('busy', 'LLM 思考中…');
+  PK.Hud.setLLMStatus('busy', PK.t('LLM 思考中…'));
   try {
     var t0 = Date.now();
     var advice = await PK.LLM.advice(engine, App.heroId, App.equityResult);
     advice.latency = (Date.now() - t0) + 'ms';
     PK.Hud.showAdvice(advice);
-    PK.Hud.setLLMStatus('ok', 'LLM 就绪 · ' + (PK.LLM.stats.lastLatency || 0) + 'ms');
+    PK.Hud.setLLMStatus('ok', PK.t('LLM 就绪 · ') + (PK.LLM.stats.lastLatency || 0) + 'ms');
   } catch (e) {
     PK.Hud.clearAdvice();
-    PK.Hud.setLLMStatus('err', 'LLM 错误: ' + String(e.message || e).slice(0, 60));
-    PK.Hud.toast('AI 建议失败: ' + String(e.message || e).slice(0, 100), 'err', 4200);
+    PK.Hud.setLLMStatus('err', PK.t('LLM 错误: ') + String(e.message || e).slice(0, 60));
+    PK.Hud.toast(PK.t('AI 建议失败: ') + String(e.message || e).slice(0, 100), 'err', 4200);
   }
 }
 
@@ -492,25 +502,27 @@ function applyAdvice(advice) {
   if (norm && PK.Hud._actionResolve) {
     PK.Hud._done(norm);
   } else if (!PK.Hud._actionResolve) {
-    PK.Hud.toast('当前不是你的行动回合', 'warn');
+    PK.Hud.toast(PK.t('当前不是你的行动回合'), 'warn');
   } else {
-    PK.Hud.toast('建议已过期(牌面/下注已变化), 请重新获取', 'warn');
+    PK.Hud.toast(PK.t('建议已过期(牌面/下注已变化), 请重新获取'), 'warn');
   }
 }
 
 function updateLLMStatus() {
-  if (!PK.LLM.cfg.enabled) { PK.Hud.setLLMStatus('off', 'LLM 未启用 · 人机=风格+胜率+随机'); return; }
-  if (!PK.LLM.ready()) { PK.Hud.setLLMStatus('off', 'LLM 配置不完整'); return; }
-  PK.Hud.setLLMStatus('ok', 'LLM: ' + PK.LLM.cfg.model + ' · 调用 ' + PK.LLM.stats.calls + ' 次');
+  if (!PK.LLM.cfg.enabled) { PK.Hud.setLLMStatus('off', PK.t('LLM 未启用 · 人机=风格+胜率+随机')); return; }
+  if (!PK.LLM.ready()) { PK.Hud.setLLMStatus('off', PK.t('LLM 配置不完整')); return; }
+  PK.Hud.setLLMStatus('ok', PK.I18N.lang === 'en'
+    ? 'LLM: ' + PK.LLM.cfg.model + ' · calls: ' + PK.LLM.stats.calls
+    : 'LLM: ' + PK.LLM.cfg.model + ' · 调用 ' + PK.LLM.stats.calls + ' 次');
 }
 
 /* ================= 菜单/结算 ================= */
 function showMenu() {
   PK.Hud.modal(
-    '<h3>菜单</h3><p>当前进度将丢失(锦标赛无法保存)。</p>' +
-    '<div class="modal-btns"><button class="btn primary" data-close="resume">继续游戏</button>' +
-    '<button class="btn" data-close="help">玩法说明</button>' +
-    '<button class="btn danger" data-close="quit">放弃并回大厅</button></div>'
+    '<h3>' + PK.t('菜单') + '</h3><p>' + PK.t('当前进度将丢失(锦标赛无法保存)。') + '</p>' +
+    '<div class="modal-btns"><button class="btn primary" data-close="resume">' + PK.t('继续游戏') + '</button>' +
+    '<button class="btn" data-close="help">' + PK.t('玩法说明') + '</button>' +
+    '<button class="btn danger" data-close="quit">' + PK.t('放弃并回大厅') + '</button></div>'
   ).then(function (r) {
     if (r === 'help') PK.Hud.showHelp();
     if (r === 'quit') {
@@ -525,11 +537,12 @@ async function showResults(quitData) {
   var engine = App.engine;
   var ev = App.gameOverData || quitData || {};
   var hero = engine.players[App.heroId];
+  var isEn = PK.I18N.lang === 'en';
   var title, sub, rows = [];
 
   if (engine.cfg.mode === 'cash' || ev.quit) {
-    title = '现金局结算';
-    sub = '共 ' + engine.handNo + ' 手';
+    title = PK.t('现金局结算');
+    sub = (isEn ? engine.handNo + ' hands' : '共 ' + engine.handNo + ' 手');
     engine.players.forEach(function (p) {
       if (!p.dealt && !p.sittingOut && !p.out) return;
       var net = p.stack - p.totalBuyin;
@@ -537,23 +550,25 @@ async function showResults(quitData) {
         name: p.name, isHero: p.isHero, medal: net > 0 ? '📈' : net < 0 ? '📉' : '➖',
         main: (net >= 0 ? '+' : '') + PK.fmt(net), hands: p.stats.hands,
         vpip: p.stats.hands ? Math.round(p.stats.vpip / p.stats.hands * 100) + '%' : '—',
-        styleTag: p.isHuman ? null : (PK.AI_STYLES[p.styleKey] || {}).label
+        styleTag: p.isHuman ? null : PK.t((PK.AI_STYLES[p.styleKey] || {}).label)
       });
     });
     rows.sort(function (a, b) { return b.name.localeCompare; });
   } else {
     var winnerName = engine.alive()[0] ? engine.alive()[0].name : '—';
     var heroPlace = hero.place || (hero.out ? hero.place : 1);
-    title = (heroPlace === 1 ? '🏆 你赢了!' : '比赛结束') ;
-    sub = '冠军: ' + winnerName + ' · 共 ' + engine.handNo + ' 手 · 总奖池 ' + PK.fmt(ev.pool || 0);
-    (ev.standings || []).forEach(function (s, i) {
+    title = (heroPlace === 1 ? PK.t('你赢了!') : PK.t('比赛结束'));
+    sub = (isEn
+      ? 'Champion: ' + winnerName + ' · ' + engine.handNo + ' hands · pool ' + PK.fmt(ev.pool || 0)
+      : PK.t('冠军:') + ' ' + winnerName + ' · ' + PK.t('共') + ' ' + engine.handNo + ' ' + PK.t('手') + ' · ' + PK.t('总奖池') + ' ' + PK.fmt(ev.pool || 0));
+    (ev.standings || []).forEach(function (s) {
       var p = engine.players[s.playerId];
       rows.push({
         name: p.name, isHero: p.isHuman, medal: s.place === 1 ? '🥇' : s.place === 2 ? '🥈' : s.place === 3 ? '🥉' : '' + s.place,
-        main: '第' + s.place + '名' + (s.prize ? ' · ' + PK.fmt(s.prize) : '') + (s.bounty ? ' · 💀' + s.bounty : ''),
+        main: (isEn ? '#' + s.place : '第' + s.place + PK.t('名')) + (s.prize ? ' · ' + PK.fmt(s.prize) : '') + (s.bounty ? ' · 💀' + s.bounty : ''),
         hands: p.stats.hands,
         vpip: p.stats.hands ? Math.round(p.stats.vpip / p.stats.hands * 100) + '%' : '—',
-        styleTag: p.isHuman ? null : (PK.AI_STYLES[p.styleKey] || {}).label
+        styleTag: p.isHuman ? null : PK.t((PK.AI_STYLES[p.styleKey] || {}).label)
       });
     });
   }

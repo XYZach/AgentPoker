@@ -5,45 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>德州扑克 — 现金局 · 锦标赛 · 鱿鱼场</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦑</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
 <!-- ============ 大厅 ============ -->
 <div id="lobby">
+  <button id="lobby-lang" class="lang-btn" title="中文 / English">EN</button>
   <div class="lobby-inner">
-    <div class="lobby-title">♠ 德州扑克 <span class="squid">🦑</span></div>
-    <div class="lobby-sub">经典 2D 牌桌 · 蒙特卡洛胜率 · 记牌器 · 六种 AI 风格 · 可接入大模型 API</div>
+    <div class="lobby-title">♠ <span data-i18n="♠ 德州扑克">♠ 德州扑克</span> <span class="squid">🦑</span></div>
+    <div class="lobby-sub" data-i18n="经典 2D 牌桌 · 蒙特卡洛胜率 · 记牌器 · 六种 AI 风格 · 可接入大模型 API">经典 2D 牌桌 · 蒙特卡洛胜率 · 记牌器 · 六种 AI 风格 · 可接入大模型 API</div>
 
     <div class="mode-cards">
       <div class="mode-card" data-mode="cash">
         <div class="mc-icon">💵</div>
-        <div class="mc-name">现金局</div>
-        <div class="mc-desc">盲注固定 · 输光随时重买 · 随时离座<br>适合练习与长session统计盈亏</div>
+        <div class="mc-name" data-i18n="现金局">现金局</div>
+        <div class="mc-desc"><span data-i18n="盲注固定 · 输光随时重买 · 随时离座">盲注固定 · 输光随时重买 · 随时离座</span><br><span data-i18n="适合练习与长session统计盈亏">适合练习与长session统计盈亏</span></div>
       </div>
       <div class="mode-card" data-mode="tourney">
         <div class="mc-icon">🏆</div>
-        <div class="mc-name">锦标赛</div>
-        <div class="mc-desc">盲注逐级上升 · 输光即淘汰<br>打到只剩一人 · 前三名分享奖池</div>
+        <div class="mc-name" data-i18n="锦标赛">锦标赛</div>
+        <div class="mc-desc"><span data-i18n="盲注逐级上升 · 输光即淘汰">盲注逐级上升 · 输光即淘汰</span><br><span data-i18n="打到只剩一人 · 前三名分享奖池">打到只剩一人 · 前三名分享奖池</span></div>
       </div>
       <div class="mode-card squid-card sel" data-mode="squid">
         <div class="mc-icon">🦑</div>
-        <div class="mc-name">鱿鱼场</div>
-        <div class="mc-desc">锦标赛 + 淘汰时钟:每 N 手强制淘汰最短码<br>最后一手全员强制摊牌 · 击倒得赏金 · 奖池存进小猪罐</div>
+        <div class="mc-name" data-i18n="鱿鱼场">鱿鱼场</div>
+        <div class="mc-desc"><span data-i18n="锦标赛 + 淘汰时钟:每 N 手强制淘汰最短码">锦标赛 + 淘汰时钟:每 N 手强制淘汰最短码</span><br><span data-i18n="最后一手全员强制摊牌 · 击倒得赏金 · 奖池存进小猪罐">最后一手全员强制摊牌 · 击倒得赏金 · 奖池存进小猪罐</span></div>
       </div>
     </div>
 
     <div class="lobby-section">
-      <div class="ls-title">基础设置</div>
+      <div class="ls-title" data-i18n="基础设置">基础设置</div>
       <div class="form-row">
-        <label>玩家人数</label>
+        <label data-i18n="玩家人数">玩家人数</label>
         <div class="seg" id="count-selector">
           <button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button><button data-n="5">5</button>
           <button data-n="6" class="sel">6</button><button data-n="7">7</button><button data-n="8">8</button><button data-n="9">9</button>
         </div>
       </div>
       <div class="form-row">
-        <label>起始筹码</label>
+        <label data-i18n="起始筹码">起始筹码</label>
         <div class="seg">
           <select id="opt-stack">
             <option value="500">500</option>
@@ -52,80 +53,80 @@
             <option value="5000">5,000</option>
           </select>
         </div>
-        <label style="min-width:0;margin-left:18px;">亮出弃牌</label>
+        <label style="min-width:0;margin-left:18px;" data-i18n="亮出弃牌">亮出弃牌</label>
         <input type="checkbox" id="opt-reveal">
-        <span style="font-size:11.5px;color:var(--dim)">学习模式:弃牌记入记牌器与日志(动画永不亮牌面)</span>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="学习模式:弃牌记入记牌器与日志(动画永不亮牌面)">学习模式:弃牌记入记牌器与日志(动画永不亮牌面)</span>
       </div>
     </div>
 
     <div class="lobby-section mode-section hidden" data-mode="cash">
-      <div class="ls-title">现金局参数</div>
+      <div class="ls-title" data-i18n="现金局参数">现金局参数</div>
       <div class="form-row">
-        <label>小盲</label>
+        <label data-i18n="小盲">小盲</label>
         <select id="cash-sb">
           <option value="2">2 / 4</option>
           <option value="5" selected>5 / 10</option>
           <option value="10">10 / 20</option>
           <option value="25">25 / 50</option>
         </select>
-        <span style="font-size:11.5px;color:var(--dim)">输光后可选择重新买入或结束场次</span>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="输光后可选择重新买入或结束场次">输光后可选择重新买入或结束场次</span>
       </div>
     </div>
 
     <div class="lobby-section mode-section hidden" data-mode="tourney">
-      <div class="ls-title">锦标赛参数</div>
+      <div class="ls-title" data-i18n="锦标赛参数">锦标赛参数</div>
       <div class="form-row">
-        <label>每级手数</label>
+        <label data-i18n="每级手数">每级手数</label>
         <select id="tourney-hpl">
-          <option value="5">5 手/级 (快速)</option>
-          <option value="8" selected>8 手/级 (标准)</option>
-          <option value="12">12 手/级 (慢速)</option>
+          <option value="5" data-i18n="5 手/级 (快速)">5 手/级 (快速)</option>
+          <option value="8" selected data-i18n="8 手/级 (标准)">8 手/级 (标准)</option>
+          <option value="12" data-i18n="12 手/级 (慢速)">12 手/级 (慢速)</option>
         </select>
-        <span style="font-size:11.5px;color:var(--dim)">奖池 = 人数 × 买入,前三名 50%/30%/20%</span>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="奖池 = 人数 × 买入,前三名 50%/30%/20%">奖池 = 人数 × 买入,前三名 50%/30%/20%</span>
       </div>
     </div>
 
     <div class="lobby-section mode-section" data-mode="squid">
-      <div class="ls-title">🦑 鱿鱼场规则</div>
+      <div class="ls-title" data-i18n="🦑 鱿鱼场规则">🦑 鱿鱼场规则</div>
       <div class="form-row">
-        <label>淘汰时钟</label>
+        <label data-i18n="淘汰时钟">淘汰时钟</label>
         <select id="squid-deadline">
-          <option value="4">每 4 手</option>
-          <option value="6" selected>每 6 手</option>
-          <option value="10">每 10 手</option>
+          <option value="4" data-i18n="每 4 手">每 4 手</option>
+          <option value="6" selected data-i18n="每 6 手">每 6 手</option>
+          <option value="10" data-i18n="每 10 手">每 10 手</option>
         </select>
-        <label style="min-width:0;margin-left:14px;">最终摊牌</label>
+        <label style="min-width:0;margin-left:14px;" data-i18n="最终摊牌">最终摊牌</label>
         <input type="checkbox" id="squid-forced">
-        <span style="font-size:11.5px;color:var(--dim)">硬核:时钟到点的那一手全员强制全下(一锤子买卖)</span>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="硬核:时钟到点的那一手全员强制全下(一锤子买卖)">硬核:时钟到点的那一手全员强制全下(一锤子买卖)</span>
       </div>
       <div class="form-row">
-        <label>击倒赏金</label>
+        <label data-i18n="击倒赏金">击倒赏金</label>
         <input type="checkbox" id="squid-bounty" checked>
-        <span style="font-size:11.5px;color:var(--dim)">淘汰对手立即获得买入一半的赏金筹码</span>
-        <label style="min-width:0;margin-left:14px;">决赛圈停表</label>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="淘汰对手立即获得买入一半的赏金筹码">淘汰对手立即获得买入一半的赏金筹码</span>
+        <label style="min-width:0;margin-left:14px;" data-i18n="决赛圈停表">决赛圈停表</label>
         <input type="checkbox" id="squid-hu" checked>
-        <span style="font-size:11.5px;color:var(--dim)">只剩 2 人时停止时钟</span>
+        <span style="font-size:11.5px;color:var(--dim)" data-i18n="只剩 2 人时停止时钟">只剩 2 人时停止时钟</span>
       </div>
     </div>
 
     <div class="lobby-section">
-      <div class="ls-title">玩家阵容 <small>给每个人机设置风格</small></div>
+      <div class="ls-title"><span data-i18n="玩家阵容">玩家阵容</span> <small data-i18n="给每个人机设置风格">给每个人机设置风格</small></div>
       <div id="roster-list"></div>
     </div>
 
     <div class="lobby-section">
-      <div class="ls-title">🤖 大模型 API <small>OpenAI 兼容接口 · 仅保存在本地浏览器</small></div>
+      <div class="ls-title"><span data-i18n="🤖 大模型 API">🤖 大模型 API</span> <small data-i18n="OpenAI 兼容接口 · 仅保存在本地浏览器">OpenAI 兼容接口 · 仅保存在本地浏览器</small></div>
       <div class="llm-toggle-row">
         <input type="checkbox" id="llm-enabled">
-        <span>启用大模型 — 给你实时决策建议,并按比例参与人机玩家的决策</span>
+        <span data-i18n="启用大模型 — 给你实时决策建议,并按比例参与人机玩家的决策">启用大模型 — 给你实时决策建议,并按比例参与人机玩家的决策</span>
       </div>
       <div class="llm-grid">
         <div class="llm-field">
-          <label>服务商预设</label>
+          <label data-i18n="服务商预设">服务商预设</label>
           <select id="llm-preset"></select>
         </div>
         <div class="llm-field">
-          <label>模型</label>
+          <label data-i18n="模型">模型</label>
           <input type="text" id="llm-model" placeholder="deepseek-chat">
         </div>
         <div class="llm-field full">
@@ -137,23 +138,23 @@
           <input type="password" id="llm-key" placeholder="sk-...">
         </div>
         <div class="llm-field full">
-          <label>人机咨询大模型的比例(每手随机) <span id="llm-consult-val">30%</span></label>
+          <label><span data-i18n="人机咨询大模型的比例(每手随机)">人机咨询大模型的比例(每手随机)</span> <span id="llm-consult-val">30%</span></label>
           <div class="slider-row"><input type="range" id="llm-consult" min="0" max="1" step="0.05" value="0.3"></div>
         </div>
         <div class="llm-field full">
-          <label>大模型话语权(与风格算法冲突时) <span id="llm-influence-val">60%</span></label>
+          <label><span data-i18n="大模型话语权(与风格算法冲突时)">大模型话语权(与风格算法冲突时)</span> <span id="llm-influence-val">60%</span></label>
           <div class="slider-row"><input type="range" id="llm-influence" min="0" max="1" step="0.05" value="0.6"></div>
         </div>
         <div class="llm-field full">
-          <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="llm-auto">轮到我时自动请求建议(消耗更多 token)</label>
+          <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="llm-auto"><span data-i18n="轮到我时自动请求建议(消耗更多 token)">轮到我时自动请求建议(消耗更多 token)</span></label>
         </div>
       </div>
       <div id="llm-hint"></div>
-      <div style="margin-top:10px"><button class="btn" id="llm-test">测试连接</button></div>
+      <div style="margin-top:10px"><button class="btn" id="llm-test" data-i18n="测试连接">测试连接</button></div>
     </div>
 
     <div id="btn-start-wrap">
-      <button id="btn-start">开 始 游 戏</button>
+      <button id="btn-start" data-i18n="开 始 游 戏">开 始 游 戏</button>
     </div>
   </div>
 </div>
@@ -173,66 +174,64 @@
     <div class="tb-chip" id="tb-speed">
       <button data-s="0.5">0.5×</button><button data-s="1" class="sel">1×</button><button data-s="2">2×</button><button data-s="4">4×</button>
     </div>
-    <div class="tb-chip" id="tb-camera">
-      <button data-cam="default">默认</button><button data-cam="top">俯视</button><button data-cam="close">近景</button><button data-cam="wide">远景</button>
-    </div>
     <div class="tb-sep"></div>
+    <button class="tb-icon" id="tb-lang" title="中文 / English">EN</button>
     <button class="tb-icon" id="tb-sound">🔊</button>
     <button class="tb-icon" id="tb-help">?</button>
     <button class="tb-icon" id="tb-menu">☰</button>
   </div>
 
   <div id="panel-tracker">
-    <div class="panel-title clickable" id="tracker-toggle">记牌器 <span class="mini"><span id="tracker-seen">0/52</span> <span class="toggle-arrow">▸</span></span></div>
+    <div class="panel-title clickable" id="tracker-toggle"><span data-i18n="记牌器">记牌器</span> <span class="mini"><span id="tracker-seen">0/52</span> <span class="toggle-arrow">▸</span></span></div>
     <div id="tracker-body">
       <div id="tracker-grid"></div>
-      <div class="tracker-stats"><span>弃牌死牌 <b id="tracker-dead">0</b></span></div>
+      <div class="tracker-stats"><span><span data-i18n="弃牌死牌">弃牌死牌</span> <b id="tracker-dead">0</b></span></div>
       <div class="tracker-legend">
-        <span class="lg hero"></span>你的牌 <span class="lg board"></span>公共牌 <span class="lg dead"></span>弃牌<br>
-        死牌会从胜率模拟中剔除
+        <span class="lg hero"></span><span data-i18n="你的牌">你的牌</span> <span class="lg board"></span><span data-i18n="公共牌">公共牌</span> <span class="lg dead"></span><span data-i18n="弃牌">弃牌</span><br>
+        <span data-i18n="死牌会从胜率模拟中剔除">死牌会从胜率模拟中剔除</span>
       </div>
     </div>
   </div>
 
   <div id="panel-equity">
-    <div class="panel-title">实时胜率 <span class="mini">蒙特卡洛</span></div>
+    <div class="panel-title"><span data-i18n="实时胜率">实时胜率</span> <span class="mini" data-i18n="蒙特卡洛">蒙特卡洛</span></div>
     <div class="eq-top">
       <div id="eq-ring"><span id="eq-num">—</span></div>
       <div class="eq-info">
-        <div id="eq-sub">等待手牌…</div>
+        <div id="eq-sub" data-i18n="等待手牌…">等待手牌…</div>
         <div id="eq-made"></div>
       </div>
     </div>
-    <div class="eq-bar-row"><span class="eq-bar-label">胜</span><div class="eq-bar"><div id="eq-bar-win"></div></div><span class="eq-bar-num" id="eq-bar-win-num"></span></div>
-    <div class="eq-bar-row"><span class="eq-bar-label">平</span><div class="eq-bar"><div id="eq-bar-tie"></div></div><span class="eq-bar-num" id="eq-bar-tie-num"></span></div>
-    <div class="eq-bar-row"><span class="eq-bar-label">负</span><div class="eq-bar"><div id="eq-bar-lose"></div></div><span class="eq-bar-num" id="eq-bar-lose-num"></span></div>
+    <div class="eq-bar-row"><span class="eq-bar-label" data-i18n="胜">胜</span><div class="eq-bar"><div id="eq-bar-win"></div></div><span class="eq-bar-num" id="eq-bar-win-num"></span></div>
+    <div class="eq-bar-row"><span class="eq-bar-label" data-i18n="平">平</span><div class="eq-bar"><div id="eq-bar-tie"></div></div><span class="eq-bar-num" id="eq-bar-tie-num"></span></div>
+    <div class="eq-bar-row"><span class="eq-bar-label" data-i18n="负">负</span><div class="eq-bar"><div id="eq-bar-lose"></div></div><span class="eq-bar-num" id="eq-bar-lose-num"></span></div>
     <div id="eq-odds"></div>
-    <div id="llm-status" class="off">LLM 未启用</div>
+    <div id="llm-status" class="off">LLM</div>
     <div id="advice-box" class="hidden"></div>
   </div>
 
   <div id="runout-bars" class="hidden"></div>
 
   <div id="actionbar" class="hidden">
-    <div class="ab-info">需跟注 <b id="ab-tocall">0</b> · 底池赔率需胜率 <b id="ab-odds">—</b> · 快捷键 F/C/R/A/D</div>
+    <div class="ab-info"><span data-i18n="需跟注">需跟注</span> <b id="ab-tocall">0</b> · <span data-i18n="底池赔率需胜率">底池赔率需胜率</span> <b id="ab-odds">—</b> · <span data-i18n="快捷键 F/C/R/A/D">快捷键 F/C/R/A/D</span></div>
     <div class="ab-row">
-      <button id="btn-fold" class="ab-btn danger">弃牌<span class="key">F</span></button>
-      <button id="btn-check" class="ab-btn primary">过牌<span class="key">C</span></button>
-      <button id="btn-call" class="ab-btn primary">跟注<span class="key">C</span></button>
-      <button id="btn-raise" class="ab-btn warn">加注</button>
-      <button id="btn-allin" class="ab-btn alldanger">全下<span class="key">A</span></button>
+      <button id="btn-fold" class="ab-btn danger"><span data-i18n="弃牌">弃牌</span><span class="key">F</span></button>
+      <button id="btn-check" class="ab-btn primary"><span data-i18n="过牌">过牌</span><span class="key">C</span></button>
+      <button id="btn-call" class="ab-btn primary"><span data-i18n="跟注">跟注</span><span class="key">C</span></button>
+      <button id="btn-raise" class="ab-btn warn" data-i18n="加注">加注</button>
+      <button id="btn-allin" class="ab-btn alldanger"><span data-i18n="全下">全下</span><span class="key">A</span></button>
     </div>
     <div class="ab-raise-row" id="ab-raise-row">
       <input type="range" id="ab-slider">
       <div class="ab-presets">
-        <button data-preset="min">最小</button><button data-preset="third">⅓池</button><button data-preset="half">½池</button><button data-preset="pot">1池</button><button data-preset="max">全下</button>
+        <button data-preset="min" data-i18n="最小">最小</button><button data-preset="third" data-i18n="⅓池">⅓池</button><button data-preset="half" data-i18n="½池">½池</button><button data-preset="pot" data-i18n="1池">1池</button><button data-preset="max" data-i18n="全下">全下</button>
       </div>
     </div>
-    <button id="btn-llm">🤖 AI<br>建议</button>
+    <button id="btn-llm">🤖<br>AI</button>
   </div>
 
   <div id="log-panel" class="open">
-    <div id="log-head"><span>牌局记录</span><span id="log-toggle">▾</span></div>
+    <div id="log-head"><span data-i18n="牌局记录">牌局记录</span><span id="log-toggle">▾</span></div>
     <div id="log-body"></div>
   </div>
 
@@ -242,14 +241,15 @@
   <div id="modal-root" class="hidden"></div>
 </div>
 
-<script src="js/core/cards.js?v=8"></script>
-<script src="js/core/equity.js?v=8"></script>
-<script src="js/core/engine.js?v=8"></script>
-<script src="js/ai/aiplayer.js?v=8"></script>
-<script src="js/ai/llm.js?v=8"></script>
-<script src="js/render/tween.js?v=8"></script>
-<script src="js/render/scene2d.js?v=8"></script>
-<script src="js/ui/hud.js?v=8"></script>
-<script src="js/main.js?v=8"></script>
+<script src="js/core/i18n.js?v=9"></script>
+<script src="js/core/cards.js?v=9"></script>
+<script src="js/core/equity.js?v=9"></script>
+<script src="js/core/engine.js?v=9"></script>
+<script src="js/ai/aiplayer.js?v=9"></script>
+<script src="js/ai/llm.js?v=9"></script>
+<script src="js/render/tween.js?v=9"></script>
+<script src="js/render/scene2d.js?v=9"></script>
+<script src="js/ui/hud.js?v=9"></script>
+<script src="js/main.js?v=9"></script>
 </body>
 </html>

@@ -67,7 +67,7 @@ Scene2D.prototype._buildStatic = function () {
   for (var i = 0; i < 3; i++) el('div', 't2d-deckcard', this._deckPile);
   // 弃牌堆标记
   this._muckMark = el('div', 't2d-muck', r);
-  this._muckMark.textContent = '弃牌堆';
+  this._muckMark.textContent = PK.t('弃牌堆');
   // 荷官
   this._dealerAv = el('div', 'av2d dealer' + (this.mode === 'squid' ? ' squiddealer' : ''), r);
   this._dealerAv.innerHTML = '<span class="av2d-face">' + (this.mode === 'squid' ? '◯' : '🂠') + '</span>';
@@ -346,7 +346,7 @@ Scene2D.prototype.buildPlayers = function (players) {
     self._seats[p.id] = { seat: p.seat };
     var isSquid = self.mode === 'squid' && !p.isHuman;
     var av = el('div', 'av2d' + (p.isHuman ? ' hero' : '') + (isSquid ? ' guard' : ''), self._root);
-    var faceTxt = p.isHuman ? '我' : (isSquid ? ['◯', '△', '□'][p.id % 3] : p.name.slice(0, 1));
+    var faceTxt = p.isHuman ? PK.t('我') : (isSquid ? ['◯', '△', '□'][p.id % 3] : p.name.slice(0, 1));
     av.innerHTML = '<span class="av2d-face">' + faceTxt + '</span><span class="av2d-name">' + (p.isHuman ? '' : '') + '</span>';
     if (!p.isHuman && !isSquid) av.style.setProperty('--avc', SHIRT[p.id % SHIRT.length]);
     if (isSquid && p.styleKey === 'MANIAC') av.classList.add('frontman');
@@ -710,6 +710,17 @@ Scene2D.prototype._startLoop = function () {
 };
 
 Scene2D.prototype.setSpeed = function (s) { this.speed = s; };
+
+/* 语言切换时刷新场景内文字 */
+Scene2D.prototype.refreshLang = function () {
+  this._logo.textContent = this.mode === 'squid' ? 'SQUID HOLD\'EM' : 'NO LIMIT HOLD\'EM';
+  this._muckMark.textContent = PK.t('弃牌堆');
+  var heroAv = this._avatars[0];
+  if (heroAv) {
+    var face = heroAv.querySelector('.av2d-face');
+    if (face) face.textContent = PK.t('我');
+  }
+};
 
 Scene2D.prototype.destroy = function () {
   cancelAnimationFrame(this._raf);
