@@ -506,6 +506,11 @@ Scene2D.prototype.muckCards = function (playerId) {
   var mine = this._cards.filter(function (c) { return c.playerId === playerId && !c.mucked; });
   return Promise.all(mine.map(function (c) {
     c.mucked = true;
+    /* hero 弃牌: 牌留在面前变灰(正面朝上不收走); AI 弃牌: 背面飞向弃牌堆 */
+    if (c.heroCard) {
+      c.root.classList.add('folded-grey');
+      return Promise.resolve();
+    }
     var from = { x: c.x, y: c.y };
     var to = self._muck;
     return T.add({
