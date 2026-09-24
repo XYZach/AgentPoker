@@ -295,6 +295,11 @@ Hud.initGame = function (engine, scene) {
   piggyLabel.className = 'piggy-label';
   piggyLabel.id = 'piggy-label';
   $('#labels').appendChild(piggyLabel);
+  var dealerLabel = document.createElement('div');
+  dealerLabel.className = 'dealer-label';
+  dealerLabel.id = 'dealer-label';
+  dealerLabel.textContent = '荷官';
+  $('#labels').appendChild(dealerLabel);
 
   // 记牌器
   var grid = $('#tracker-grid');
@@ -378,6 +383,15 @@ Hud.updateProjection = function () {
       pl.textContent = '彩池 ' + PK.fmt(pot);
       pl.style.transform = 'translate(-50%,-50%) translate(' + ppt.x.toFixed(1) + 'px,' + ppt.y.toFixed(1) + 'px)';
     }
+  }
+  var dealerA = scene.extraAnchor('dealer');
+  if (dealerA) {
+    var dpt = scene.project(dealerA.position);
+    var dl = $('#dealer-label');
+    if (dpt) {
+      dl.style.display = '';
+      dl.style.transform = 'translate(-50%,-100%) translate(' + dpt.x.toFixed(1) + 'px,' + dpt.y.toFixed(1) + 'px)';
+    } else dl.style.display = 'none';
   }
   var piggy = scene.extraAnchor('piggy');
   if (piggy) {

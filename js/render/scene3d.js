@@ -54,6 +54,7 @@ function Scene3D(container, opts) {
   this._initScene();
   this._buildEnvironment();
   this._buildTable();
+  this._buildDealer();
   if (this.mode === 'squid') this._buildSquidDecor();
   this._initControls();
   window.addEventListener('resize', this._onResize = this._resize.bind(this));
@@ -179,9 +180,9 @@ Scene3D.prototype._buildTable = function () {
   foot.position.y = 0.07; foot.receiveShadow = true;
   this.scene.add(foot);
 
-  // 牌堆(视觉)
+  // 牌堆(视觉, 放在荷官手边)
   var deckMat = new THREE.MeshStandardMaterial({ map: Tex.cardBack(this.mode), roughness: 0.7 });
-  this.deckPos = new THREE.Vector3(3.15, TABLE_Y + 0.22, -1.15);
+  this.deckPos = new THREE.Vector3(4.15, TABLE_Y + 0.18, -2.3);
   for (var d = 0; d < 5; d++) {
     var dc = new THREE.Mesh(this._cardGeo(), deckMat);
     dc.position.copy(this.deckPos);
@@ -191,8 +192,86 @@ Scene3D.prototype._buildTable = function () {
     dc.userData.deck = true;
     this.scene.add(dc);
   }
-  this.muckPos = new THREE.Vector3(4.7, TABLE_Y, 1.5);
+  this.muckPos = new THREE.Vector3(5.0, TABLE_Y, -1.6);
   this.potPos = new THREE.Vector3(0, TABLE_Y, -2.1);
+};
+
+/* ---------- 荷官 ---------- */
+Scene3D.prototype._buildDealer = function () {
+  var isSquid = this.mode === 'squid';
+  var g = new THREE.Group();
+  function std(geo, mat) { var m = new THREE.Mesh(geo, mat); m.castShadow = true; return m; }
+
+  var robe = isSquid ? 0xe0246c : 0x17181d;              // 守卫粉 / 黑马甲
+  var shirtC = isSquid ? robe : 0xf4f2ec;                // 白衬衫
+  var vestMat = new THREE.MeshStandardMaterial({ color: robe, roughness: 0.75 });
+  var shirtMat = new THREE.MeshStandardMaterial({ color: shirtC, roughness: 0.7 });
+  var skinMat = new THREE.MeshStandardMaterial({ color: 0xe8b88f, roughness: 0.75 });
+
+  // 站姿
+  var legs = std(new THREE.CylinderGeometry(0.24, 0.3, 0.85, 10),
+    new THREE.MeshStandardMaterial({ color: isSquid ? robe : 0x23262e, roughness: 0.85 }));
+  legs.position.y = 0.43; g.add(legs);
+  var torso = std(new THREE.CylinderGeometry(0.3, 0.36, 0.72, 12), shirtMat);
+  torso.position.y = 1.2; g.add(torso);
+  if (!isSquid) { // 马甲叠穿
+    var vest = std(new THREE.CylinderGeometry(0.318, 0.378, 0.5, 12), vestMat);
+    vest.position.y = 1.16; g.add(vest);
+  }
+  var head = std(new THREE.SphereGeometry(0.23, 16, 12), skinMat);
+  head.position.y = 1.72; g.add(head);
+
+  if (isSquid) {
+    var hood = std(new THREE.SphereGeometry(0.25, 14, 10), vestMat);
+    hood.position.y = 1.77; g.add(hood);
+    var mask = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.32),
+      new THREE.MeshStandardMaterial({ map: Tex.mask('circle'), transparent: true, roughness: 0.4 }));
+    mask.position.set(0, 1.71, 0.215); g.add(mask);
+  } else {
+    // 领结 + 绿色遮光帽檐(荷官标配)
+    var tie = std(new THREE.BoxGeometry(0.13, 0.06, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x7b1e26, roughness: 0.6 }));
+    tie.position.set(0, 1.52, 0.29); g.add(tie);
+    var visorMat = new THREE.MeshStandardMaterial({ color: 0x1a6b3c, roughness: 0.4 });
+    var visor = std(new THREE.CylinderGeometry(0.26, 0.26, 0.025, 16, 1, false, 0, Math.PI), visorMat);
+    visor.rotation.x = Math.PI / 2 - 0.55;
+    visor.rotation.y = Math.PI; // 半圆朝前
+    visor.position.set(0, 1.8, 0.1); g.add(visor);
+    var band = std(new THREE.CylinderGeometry(0.238, 0.238, 0.05, 16), visorMat);
+    band.position.y = 1.8; g.add(band);
+  }
+
+  // 手臂: 左臂自然下垂, 右臂负责发牌扫动
+  var armMat = isSquid ? vestMat : shirtMat;
+  var armL = std(new THREE.CylinderGeometry(0.07, 0.07, 0.66, 8), armMat);
+  armL.position.set(-0.37, 1.22, 0.08); armL.rotation.z = 0.45; g.add(armL);
+  this._dealerArm = std(new THREE.CylinderGeometry(0.07, 0.07, 0.66, 8), armMat);
+  this._dealerArm.position.set(0.37, 1.22, 0.08);
+  this._dealerArm.rotation.z = -0.45;
+  g.add(this._dealerArm);
+
+  g.position.set(5.5, 0, -3.7);
+  g.rotation.y = Math.atan2(-5.5, 3.7); // 立正朝向桌心
+  this.scene.add(g);
+  this._dealer = g;
+
+  // DOM 锚点
+  var anchor = new THREE.Object3D();
+  anchor.position.set(5.5, 2.35, -3.7);
+  this.scene.add(anchor);
+  this._extraAnchors.dealer = anchor;
+};
+
+/* 发牌时荷官手臂扫动 */
+Scene3D.prototype._dealerSweep = function () {
+  var arm = this._dealerArm;
+  if (!arm || this._dealerSweeping) return;
+  this._dealerSweeping = true;
+  var self = this;
+  T.add({
+    dur: 300 / this.speed, ease: T.Ease.outCubic,
+    onUpdate: function (t) { arm.rotation.x = -1.35 * Math.sin(Math.PI * t); }
+  }).then(function () { self._dealerSweeping = false; });
 };
 
 /* ---------- 鱿鱼场装饰 ---------- */
@@ -550,6 +629,7 @@ Scene3D.prototype._makeCardGroup = function (card) {
 /* 发一手牌 */
 Scene3D.prototype.dealHole = function (playerId, card, k, faceUp) {
   var self = this;
+  this._dealerSweep();
   var slot = this._cardSlot(this._seatOf(playerId), this._seatCount, k);
   var g = this._makeCardGroup(card);
   g.position.copy(this.deckPos);
@@ -595,6 +675,7 @@ Scene3D.prototype.revealHole = function (playerId, cards) {
 /* 公共牌 */
 Scene3D.prototype.dealCommunity = function (cards) {
   var self = this;
+  this._dealerSweep();
   var ps = [];
   var startIdx = this._communityCount || 0;
   cards.forEach(function (card, i) {
@@ -1005,6 +1086,10 @@ Scene3D.prototype._updateActors = function (dt) {
       av.head.rotation.z *= 0.9;
     }
   });
+  // 荷官待机摇摆
+  if (this._dealer) {
+    this._dealer.rotation.z = Math.sin(self._time * 0.9) * 0.018;
+  }
   // 存钱罐摆动 + 脉冲
   if (this.piggyPivot) {
     this.piggyPivot.rotation.z = Math.sin(this._time * 0.7) * 0.055;
