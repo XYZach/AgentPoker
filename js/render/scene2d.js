@@ -62,9 +62,6 @@ Scene2D.prototype._buildStatic = function () {
   this._line = el('div', 't2d-line', r);
   this._logo = el('div', 't2d-logo', r);
   this._logo.textContent = this.mode === 'squid' ? 'SQUID HOLD\'EM' : 'NO LIMIT HOLD\'EM';
-  // 牌堆
-  this._deckPile = el('div', 't2d-deck', r);
-  for (var i = 0; i < 3; i++) el('div', 't2d-deckcard', this._deckPile);
   // 弃牌堆标记
   this._muckMark = el('div', 't2d-muck', r);
   this._muckMark.textContent = PK.t('弃牌堆');
@@ -98,16 +95,15 @@ Scene2D.prototype._layout = function () {
   this._line.style.cssText += ';width:' + (tw * 0.74) + 'px;height:' + (th * 0.74) + 'px;left:' + (cx - RX * 0.74) + 'px;top:' + (cy - RY * 0.74) + 'px;';
   this._logo.style.left = cx + 'px'; this._logo.style.top = (cy + RY * 0.34) + 'px';
 
-  this._deck = { x: cx + RX * 0.56, y: cy - RY * 0.58 };
+  /* 发牌源 = 荷官位置(桌布上缘居中), 无独立牌堆 */
   this._muck = { x: cx - RX * 0.72, y: cy - RY * 0.2 };
-  this._deckPile.style.left = this._deck.x + 'px';
-  this._deckPile.style.top = this._deck.y + 'px';
   this._muckMark.style.left = this._muck.x + 'px';
   this._muckMark.style.top = this._muck.y + 'px';
 
   // 荷官: 桌布上缘内侧, 标签在头像上方
   this._dealerAv.style.left = cx + 'px';
   this._dealerAv.style.top = (cy - RY * 0.72) + 'px';
+  this._deck = { x: cx, y: cy - RY * 0.72 };
   this._extra.dealer = { position: { x: cx, y: cy - RY * 0.72 - 27, z: 0 } };
 
   this._pot = { x: cx, y: cy - RY * 0.36 };

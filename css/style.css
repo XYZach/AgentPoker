@@ -553,15 +553,7 @@ body[data-mode="squid"] .t2d-rail { background: radial-gradient(ellipse at 50% 3
 body[data-mode="squid"] .t2d-felt { background: radial-gradient(ellipse at 50% 42%, #0f6f60 0%, #0a574c 48%, #074038 82%, #05302a 100%); }
 body[data-mode="squid"] .t2d-line { border-color: rgba(255,45,120,.3); }
 
-/* 牌堆 / 弃牌堆 */
-.t2d-deck { position: absolute; z-index: 5; width: 38px; height: 53px; transform: translate(-50%,-50%); }
-.t2d-deckcard { position: absolute; inset: 0; border-radius: 4px;
-  background: #b02e3c; border: 1.5px solid #f4f2ec;
-  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 4px, transparent 4px 9px);
-  box-shadow: 0 1px 3px rgba(0,0,0,.4);
-}
-.t2d-deckcard:nth-child(2) { transform: translate(2px,-2px); }
-.t2d-deckcard:nth-child(3) { transform: translate(4px,-4px); }
+/* 弃牌堆 */
 .t2d-muck { position: absolute; z-index: 4; transform: translate(-50%,-50%);
   font-size: 10.5px; color: rgba(255,255,255,.28); letter-spacing: 2px; pointer-events: none;
 }
