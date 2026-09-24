@@ -218,7 +218,7 @@ async function handleEvent(ev) {
       PK.Hud.sfx(sounds[ev.action]);
       if (ev.action === 'fold') {
         scene.setAvatarState(ev.playerId, 'folded');
-        await scene.muckCards(ev.playerId, engine.cfg.revealFolds);
+        await scene.muckCards(ev.playerId);
       } else {
         scene.setBet(ev.playerId, pl.bet);
       }

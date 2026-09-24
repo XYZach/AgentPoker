@@ -639,26 +639,38 @@ Scene3D.prototype.dealHole = function (playerId, card, k, faceUp) {
   g.userData.playerId = playerId;
   this.scene.add(g);
   this._cards.push(g);
-  var targetRot = { x: -Math.PI / 2 + 0.06, y: faceUp ? 0 : Math.PI, z: 0 };
+  // 玩家自己的手牌: 立起来朝向自己, 像持牌(底边抵在桌布上)
+  var targetRot, targetScale = 1;
+  if (faceUp) {
+    g.userData.heroCard = true;
+    targetScale = 1.14;
+    slot = slot.clone();
+    slot.z += 0.1;
+    if (k === 0) { slot.x -= 0.06; slot.y = TABLE_Y + 0.4; targetRot = { x: -Math.PI / 2 + 1.18, y: 0, z: 0.09 }; }
+    else { slot.x += 0.3; slot.z -= 0.14; slot.y = TABLE_Y + 0.41; targetRot = { x: -Math.PI / 2 + 1.3, y: 0, z: -0.1 }; }
+    g.scale.setScalar(targetScale);
+  } else {
+    targetRot = { x: -Math.PI / 2 + 0.06, y: Math.PI, z: 0 };
+  }
   var fromR = { x: g.rotation.x, y: g.rotation.y, z: g.rotation.z };
   return T.add({
     dur: 340 / this.speed, ease: T.Ease.outQuad,
     onUpdate: function (t) {
       g.position.lerpVectors(self.deckPos, slot, t);
-      g.position.y = TABLE_Y + 0.015 + Math.sin(Math.PI * t) * 0.55;
+      g.position.y = self.deckPos.y + (slot.y - self.deckPos.y) * t + Math.sin(Math.PI * t) * 0.55;
       g.rotation.x = fromR.x + (targetRot.x - fromR.x) * t;
       g.rotation.y = fromR.y + (targetRot.y - fromR.y) * t;
-      g.rotation.z = fromR.z * (1 - t);
+      g.rotation.z = fromR.z * (1 - t) + (targetRot.z || 0) * t;
     }
   });
 };
 
 Scene3D.prototype._seatOf = function (playerId) { return playerId; };
 
-/* 翻开某人手牌(摊牌/亮牌) */
+/* 翻开某人手牌(摊牌/亮牌); 玩家自己的牌已立起朝向自己, 不再翻 */
 Scene3D.prototype.revealHole = function (playerId, cards) {
   var self = this;
-  var mine = this._cards.filter(function (c) { return c.userData.playerId === playerId && !c.userData.mucked; });
+  var mine = this._cards.filter(function (c) { return c.userData.playerId === playerId && !c.userData.mucked && !c.userData.heroCard; });
   var ps = [];
   mine.forEach(function (g, idx) {
     ps.push(T.add({
@@ -712,28 +724,25 @@ Scene3D.prototype.dealCommunity = function (cards) {
   return Promise.all(ps);
 };
 
-/* 弃牌进弃牌堆 */
-Scene3D.prototype.muckCards = function (playerId, revealFirst) {
+/* 弃牌进弃牌堆(始终背面朝上, 不展示牌面) */
+Scene3D.prototype.muckCards = function (playerId) {
   var self = this;
   var mine = this._cards.filter(function (c) { return c.userData.playerId === playerId && !c.userData.mucked; });
   var ps = [];
   mine.forEach(function (g) {
     g.userData.mucked = true;
     var from = g.position.clone();
-    var flipP = revealFirst ? T.add({
-      dur: 200 / self.speed, ease: T.Ease.outQuad,
-      onUpdate: function (t) { g.rotation.y = Math.PI * (1 - t); g.position.y = TABLE_Y + 0.05 + Math.sin(Math.PI * t) * 0.2; }
-    }) : Promise.resolve();
-    ps.push(flipP.then(function () {
-      return T.add({
-        dur: 300 / self.speed, ease: T.Ease.inQuad,
-        onUpdate: function (t) {
-          g.position.lerpVectors(from, self.muckPos, t);
-          g.position.y = TABLE_Y + 0.02 + Math.sin(Math.PI * t) * 0.35;
-          if (t > 0.75) g.scale.setScalar(1 - (t - 0.75) * 3.2);
-        },
-        onDone: function () { }
-      });
+    var fromR = { x: g.rotation.x, y: g.rotation.y };
+    ps.push(T.add({
+      dur: 340 / self.speed, ease: T.Ease.inQuad,
+      onUpdate: function (t) {
+        g.position.lerpVectors(from, self.muckPos, t);
+        g.position.y = TABLE_Y + 0.02 + Math.sin(Math.PI * t) * 0.35;
+        // 翻回背面并放平
+        g.rotation.x = fromR.x + (-Math.PI / 2 - fromR.x) * t;
+        g.rotation.y = fromR.y * (1 - t) + Math.PI * t;
+        if (t > 0.75) g.scale.setScalar(1 - (t - 0.75) * 3.2);
+      }
     }));
   });
   return Promise.all(ps);
@@ -890,10 +899,13 @@ Scene3D.prototype.highlightCards = function (cards) {
     ring.position.y = TABLE_Y + 0.012;
     self.scene.add(ring);
     self._highlightRings.push(ring);
-    T.add({
-      dur: 300 / self.speed, ease: T.Ease.outCubic,
-      onUpdate: function (t) { g.position.y = TABLE_Y + 0.015 + t * 0.22; }
-    });
+    (function (cardG) {
+      var y0 = cardG.position.y;
+      T.add({
+        dur: 300 / self.speed, ease: T.Ease.outCubic,
+        onUpdate: function (t) { cardG.position.y = y0 + t * 0.2; }
+      });
+    })(g);
   });
 };
 Scene3D.prototype.clearHighlights = function () {
