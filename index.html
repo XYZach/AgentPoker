@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>3D 德州扑克 — 现金局 · 锦标赛 · 鱿鱼场</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦑</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
 
@@ -183,12 +183,14 @@
   </div>
 
   <div id="panel-tracker">
-    <div class="panel-title">记牌器 <span class="mini" id="tracker-seen">0/52</span></div>
-    <div id="tracker-grid"></div>
-    <div class="tracker-stats"><span>弃牌死牌 <b id="tracker-dead">0</b></span></div>
-    <div class="tracker-legend">
-      <span class="lg hero"></span>你的牌 <span class="lg board"></span>公共牌 <span class="lg dead"></span>弃牌<br>
-      死牌会从胜率模拟中剔除
+    <div class="panel-title clickable" id="tracker-toggle">记牌器 <span class="mini"><span id="tracker-seen">0/52</span> <span class="toggle-arrow">▸</span></span></div>
+    <div id="tracker-body">
+      <div id="tracker-grid"></div>
+      <div class="tracker-stats"><span>弃牌死牌 <b id="tracker-dead">0</b></span></div>
+      <div class="tracker-legend">
+        <span class="lg hero"></span>你的牌 <span class="lg board"></span>公共牌 <span class="lg dead"></span>弃牌<br>
+        死牌会从胜率模拟中剔除
+      </div>
     </div>
   </div>
 
@@ -244,15 +246,15 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="js/core/cards.js?v=5"></script>
-<script src="js/core/equity.js?v=5"></script>
-<script src="js/core/engine.js?v=5"></script>
-<script src="js/ai/aiplayer.js?v=5"></script>
-<script src="js/ai/llm.js?v=5"></script>
-<script src="js/render/tween.js?v=5"></script>
-<script src="js/render/textures.js?v=5"></script>
-<script src="js/render/scene3d.js?v=5"></script>
-<script src="js/ui/hud.js?v=5"></script>
-<script src="js/main.js?v=5"></script>
+<script src="js/core/cards.js?v=6"></script>
+<script src="js/core/equity.js?v=6"></script>
+<script src="js/core/engine.js?v=6"></script>
+<script src="js/ai/aiplayer.js?v=6"></script>
+<script src="js/ai/llm.js?v=6"></script>
+<script src="js/render/tween.js?v=6"></script>
+<script src="js/render/textures.js?v=6"></script>
+<script src="js/render/scene3d.js?v=6"></script>
+<script src="js/ui/hud.js?v=6"></script>
+<script src="js/main.js?v=6"></script>
 </body>
 </html>

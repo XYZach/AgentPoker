@@ -301,7 +301,11 @@ Hud.initGame = function (engine, scene) {
   dealerLabel.textContent = '荷官';
   $('#labels').appendChild(dealerLabel);
 
-  // 记牌器
+  // 记牌器(默认折叠, 点标题展开)
+  $('#tracker-toggle').onclick = function () {
+    $('#panel-tracker').classList.toggle('open');
+    Hud.sfx('click');
+  };
   var grid = $('#tracker-grid');
   grid.innerHTML = '';
   var suits = [0, 1, 2, 3], ranks = [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];

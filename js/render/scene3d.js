@@ -180,9 +180,9 @@ Scene3D.prototype._buildTable = function () {
   foot.position.y = 0.07; foot.receiveShadow = true;
   this.scene.add(foot);
 
-  // 牌堆(视觉, 放在荷官手边)
+  // 牌堆(视觉, 荷官右手边) + 弃牌堆(左手边)
   var deckMat = new THREE.MeshStandardMaterial({ map: Tex.cardBack(this.mode), roughness: 0.7 });
-  this.deckPos = new THREE.Vector3(4.15, TABLE_Y + 0.18, -2.3);
+  this.deckPos = new THREE.Vector3(1.2, TABLE_Y + 0.18, -2.45);
   for (var d = 0; d < 5; d++) {
     var dc = new THREE.Mesh(this._cardGeo(), deckMat);
     dc.position.copy(this.deckPos);
@@ -192,8 +192,8 @@ Scene3D.prototype._buildTable = function () {
     dc.userData.deck = true;
     this.scene.add(dc);
   }
-  this.muckPos = new THREE.Vector3(5.0, TABLE_Y, -1.6);
-  this.potPos = new THREE.Vector3(0, TABLE_Y, -2.1);
+  this.muckPos = new THREE.Vector3(-1.5, TABLE_Y, -2.3);
+  this.potPos = new THREE.Vector3(0, TABLE_Y, -1.9);
 };
 
 /* ---------- 荷官 ---------- */
@@ -250,14 +250,14 @@ Scene3D.prototype._buildDealer = function () {
   this._dealerArm.rotation.z = -0.45;
   g.add(this._dealerArm);
 
-  g.position.set(5.5, 0, -3.7);
-  g.rotation.y = Math.atan2(-5.5, 3.7); // 立正朝向桌心
+  g.position.set(0, 0, -5.2);
+  g.rotation.y = 0; // 立正面向玩家一侧
   this.scene.add(g);
   this._dealer = g;
 
   // DOM 锚点
   var anchor = new THREE.Object3D();
-  anchor.position.set(5.5, 2.35, -3.7);
+  anchor.position.set(0, 2.35, -5.2);
   this.scene.add(anchor);
   this._extraAnchors.dealer = anchor;
 };
@@ -387,16 +387,28 @@ Scene3D.prototype._buildPiggy = function () {
 };
 
 /* ---------- 玩家/座位 ---------- */
+/* 座位角度: 玩家(0号)在正前方 0°, 荷官固定占据正后方 180°, 其余玩家分列两侧 */
+Scene3D.prototype._seatAngle = function (i, n) {
+  if (i === 0) return 0;
+  var m = n - 1;
+  var right = Math.ceil(m / 2), left = m - right;
+  var idx = i - 1;
+  var deg;
+  if (idx < right) deg = 12 + (idx + 0.5) * (148 / right);
+  else deg = 200 + ((idx - right) + 0.5) * (148 / left);
+  return deg * Math.PI / 180;
+};
+
 Scene3D.prototype.seatPos = function (i, n) {
-  var th = (i / n) * Math.PI * 2;
+  var th = this._seatAngle(i, n);
   return new THREE.Vector3(Math.sin(th) * SEAT_RX, 0, Math.cos(th) * SEAT_RZ);
 };
 Scene3D.prototype.betPos = function (i, n) {
-  var th = (i / n) * Math.PI * 2;
+  var th = this._seatAngle(i, n);
   return new THREE.Vector3(Math.sin(th) * BET_RX, TABLE_Y + 0.02, Math.cos(th) * BET_RZ);
 };
 Scene3D.prototype._cardSlot = function (i, n, k) {
-  var th = (i / n) * Math.PI * 2;
+  var th = this._seatAngle(i, n);
   var dir = new THREE.Vector3(Math.sin(th), 0, Math.cos(th));
   var base = new THREE.Vector3(Math.sin(th) * (BET_RX - 1.15), TABLE_Y + 0.015, Math.cos(th) * (BET_RZ - 0.75));
   var perp = new THREE.Vector3(dir.z, 0, -dir.x);
@@ -609,12 +621,25 @@ Scene3D.prototype._initControls = function () {
 
 Scene3D.prototype.cameraPreset = function (name) {
   var s = this.camState;
-  if (name === 'top') { s.tPitch = 1.32; s.tRadius = 13.5; s.tYaw = s.tYaw; }
+  s.tYaw = 0; // 所有预设回到正面(玩家视角)
+  if (name === 'top') { s.tPitch = 1.32; s.tRadius = 13.5; }
   else if (name === 'close') { s.tPitch = 0.42; s.tRadius = 8.6; }
   else if (name === 'wide') { s.tPitch = 0.72; s.tRadius = 16.5; }
   else { s.tPitch = 0.6; s.tRadius = 13.2; }
 };
-Scene3D.prototype.setCinematic = function (on) { this._cineOrbit = on; };
+Scene3D.prototype.setCinematic = function (on) {
+  var s = this.camState;
+  if (on && !this._cineOrbit) this._preCineYaw = s.tYaw;
+  this._cineOrbit = on;
+  if (!on && this._preCineYaw != null) {
+    // 运镜结束: 平滑转回运镜前的朝向(取最短圈)
+    var delta = (s.tYaw - this._preCineYaw) % (Math.PI * 2);
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    s.tYaw -= delta;
+    this._preCineYaw = null;
+  }
+};
 
 /* ---------- 卡牌 ---------- */
 Scene3D.prototype._makeCardGroup = function (card) {

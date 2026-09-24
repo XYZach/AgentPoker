@@ -204,11 +204,15 @@ body[data-mode="squid"] #tb-mode { color: var(--pink); }
   width: 30px; height: 26px; border-radius: 7px; font-size: 13px;
 }
 
-/* 左栏: 记牌器 */
+/* 左栏: 记牌器(默认折叠) */
 #panel-tracker {
   position: absolute; left: 12px; top: 64px; width: 196px; z-index: 15;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 11px 12px;
 }
+#panel-tracker:not(.open) #tracker-body { display: none; }
+#panel-tracker .panel-title.clickable { cursor: pointer; }
+#panel-tracker .toggle-arrow { display: inline-block; transition: transform .2s; color: var(--dim); }
+#panel-tracker.open .toggle-arrow { transform: rotate(90deg); }
 .panel-title { font-size: 12.5px; font-weight: 700; color: var(--gold); margin-bottom: 8px; display: flex; justify-content: space-between; }
 body[data-mode="squid"] .panel-title { color: var(--teal); }
 .panel-title .mini { color: var(--dim); font-weight: 400; font-size: 11px; }
