@@ -484,9 +484,9 @@ body[data-mode="squid"] .panel-title { color: var(--teal); }
 .rv-coach-title { font-weight: 700; color: var(--teal); margin-bottom: 6px; font-size: 13px; }
 .rv-coach-text { font-size: 13px; line-height: 1.75; white-space: pre-wrap; color: var(--text); }
 
-/* 预选动作条(自动过牌/跟注 · 自动弃牌) */
+/* 预选动作条(自动过牌/跟注 · 自动弃牌): 左下角, 不遮 hero 手牌 */
 #preact {
-  position: absolute; bottom: 205px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 14px; left: 12px;
   display: flex; gap: 16px; align-items: center;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
   padding: 7px 16px; z-index: 24;
