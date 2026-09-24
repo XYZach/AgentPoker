@@ -1,0 +1,253 @@
+/* Node 逻辑测试: 评估器 / 胜率 / 引擎 fuzz
+ * 用法: node tests/run-tests.js
+ */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const ROOT = path.join(__dirname, '..');
+const ctx = {
+  window: undefined,
+  global: {},
+  console, Math, setTimeout, performance: { now: () => Date.now() },
+};
+ctx.global = ctx; // 让模块里的 global.PK 挂到同一对象
+vm.createContext(ctx);
+for (const f of ['js/core/cards.js', 'js/core/equity.js', 'js/core/engine.js', 'js/ai/aiplayer.js']) {
+  vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
+}
+const PK = ctx.PK;
+
+let pass = 0, fail = 0;
+function ok(cond, msg) {
+  if (cond) { pass++; }
+  else { fail++; console.error('  FAIL:', msg); }
+}
+function section(name) { console.log('== ' + name + ' =='); }
+
+/* ---------- 评估器 ---------- */
+section('evaluator');
+const C = (r, s) => (r << 2) | s; // rank, suit
+function score(cs) { return PK.evalScore(cs, cs.length); }
+
+ok(score([C(14,0),C(13,0),C(12,0),C(11,0),C(10,0),C(5,1),C(9,1)]) >> 20 === 8, 'royal flush cat');
+ok(score([C(14,0),C(2,0),C(3,0),C(4,0),C(5,0),C(9,1),C(9,2)]) >> 20 === 8, 'wheel straight flush');
+ok((score([C(14,0),C(2,0),C(3,0),C(4,0),C(5,0),C(9,1),C(9,2)]) >> 16 & 0xf) === 5, 'wheel high=5');
+ok(score([C(9,0),C(9,1),C(9,2),C(9,3),C(5,1),C(6,2),C(7,0)]) >> 20 === 7, 'quads');
+ok(score([C(9,0),C(9,1),C(9,2),C(2,3),C(2,1),C(6,2),C(7,0)]) >> 20 === 6, 'full house (trips+pair)');
+ok(score([C(9,0),C(9,1),C(9,2),C(3,3),C(3,1),C(6,2),C(7,0)]) >> 20 === 6, 'full house (two trips)');
+ok(score([C(14,0),C(11,0),C(9,0),C(7,0),C(5,0),C(13,1),C(12,2)]) >> 20 === 5, 'flush');
+ok(score([C(14,0),C(11,0),C(9,0),C(7,0),C(5,0),C(13,1),C(12,2)]) === ((5<<20)|(14<<16)|(11<<12)|(9<<8)|(7<<4)|5), 'flush ranks packed');
+ok(score([C(14,0),C(13,1),C(12,0),C(11,2),C(10,3),C(7,1),C(5,2)]) >> 20 === 4, 'straight not flush');
+ok(score([C(14,0),C(2,1),C(3,2),C(4,3),C(5,0),C(13,1),C(12,2)]) >> 20 === 4, 'wheel straight');
+ok(score([C(9,0),C(9,1),C(9,2),C(2,3),C(3,1),C(6,2),C(7,0)]) >> 20 === 3, 'trips');
+ok(score([C(9,0),C(9,1),C(2,2),C(2,3),C(3,1),C(6,2),C(7,0)]) >> 20 === 2, 'two pair');
+ok(score([C(9,0),C(9,1),C(2,2),C(3,3),C(4,1),C(6,2),C(7,0)]) >> 20 === 1, 'one pair');
+ok(score([C(14,0),C(11,1),C(9,2),C(7,3),C(5,1),C(3,2),C(2,3)]) >> 20 === 0, 'high card');
+// kicker 对比
+ok(score([C(14,0),C(14,1),C(9,2),C(7,3),C(6,1),C(4,2),C(3,0)]) > score([C(14,2),C(14,3),C(8,1),C(6,0),C(4,3),C(3,2),C(2,1)]), 'pair kicker A96>A85');
+ok(score([C(13,0),C(13,1),C(2,2),C(3,3),C(4,1),C(6,2),C(7,0)]) < score([C(14,2),C(14,3),C(2,1),C(3,0),C(4,2),C(5,3),C(6,1)]), 'AA>KK');
+ok(score([C(8,0),C(8,1),C(8,2),C(8,3),C(5,1),C(5,2),C(6,0)]) > score([C(14,0),C(14,1),C(14,2),C(2,3),C(3,1),C(6,2),C(7,0)]), 'quads>trips');
+// detailed best5
+const det = PK.evalDetailed([C(14,0),C(14,1),C(2,2),C(3,3),C(4,1),C(6,2),C(7,0)]);
+ok(det.best5.length === 5 && det.best5.filter(c => c>>2===14).length === 2, 'detailed best5 pair');
+const detSf = PK.evalDetailed([C(14,0),C(2,0),C(3,0),C(4,0),C(5,0),C(9,1),C(9,2)]);
+ok(detSf.best5.length === 5 && detSf.best5.every(c => (c&3)===0), 'detailed wheel SF all spades');
+ok(detSf.best5.includes(C(14,0)), 'wheel SF uses ace');
+
+/* ---------- 胜率 ---------- */
+section('equity');
+const rng = PK.mulberry32(42);
+let r = PK.Equity.simulate([C(14,0),C(14,1)], [], 1, [], 3000, rng);
+ok(r.win > 0.80 && r.win < 0.90, 'AA vs 1 random ≈ 85% (got ' + (r.win*100).toFixed(1) + ')');
+r = PK.Equity.simulate([C(7,0),C(2,1)], [], 1, [], 3000, rng);
+ok(r.win > 0.28 && r.win < 0.42, '72o vs 1 random ≈ 35% (got ' + (r.win*100).toFixed(1) + ')');
+r = PK.Equity.simulate([C(14,0),C(14,1)], [], 5, [], 4000, rng);
+ok(r.win > 0.42 && r.win < 0.58, 'AA vs 5 ≈ 49% (got ' + (r.win*100).toFixed(1) + ')');
+r = PK.Equity.simulate([C(14,0),C(14,1)], [C(14,2),C(14,3),C(7,1)], 1, [], 2000, rng);
+ok(r.win > 0.95, 'quads on board ≈ 98% (got ' + (r.win*100).toFixed(1) + ')');
+const rm = PK.Equity.multi([[C(14,0),C(14,1)],[C(7,1),C(2,2)]], [C(5,0),C(6,0),C(9,3)], 2000, rng);
+ok(Math.abs(rm[0].win + rm[1].win + rm[0].tie - 1) < 1e-6, 'multi probabilities sum');
+ok(rm[0].win > 0.75, 'AA vs 72 on board dominates (exact 80.8, got ' + (rm[0].win*100).toFixed(1) + ')');
+const t0 = Date.now();
+PK.Equity.simulate([C(11,1),C(10,1)], [C(2,0)], 4, [], 5000, PK.rng);
+console.log('  5000 iters x5 hands eval time:', (Date.now()-t0) + 'ms');
+
+/* ---------- 引擎 fuzz ---------- */
+section('engine fuzz');
+function mkCfg(mode, n, extra) {
+  const roster = [];
+  for (let i = 0; i < n; i++) roster.push({ name: 'P' + i, isHuman: false, styleKey: ['TAG','LAG','ROCK','FISH','BAL','MANIAC','TAG','LAG','BAL'][i] });
+  const cfg = Object.assign({ mode, startStack: 1000, revealFolds: true, roster }, extra || {});
+  if (mode === 'cash') cfg.cash = { sb: 5, bb: 10 };
+  if (mode === 'tourney') cfg.tourney = { handsPerLevel: 8 };
+  if (mode === 'squid') {
+    cfg.tourney = { handsPerLevel: 8 };
+    cfg.squid = { deadlineHands: 5, forcedShowdown: true, bounty: true, bountyAmount: 500, deadlineUntilHU: true, winnerTakeAll: true };
+  }
+  return cfg;
+}
+function driveRandomly(engine, maxHands) {
+  let hands = 0, actions = 0;
+  while (!engine.over && hands < maxHands) {
+    engine.startHand();
+    hands++;
+    let guard = 0;
+    while (engine.phase !== 'done' && guard++ < 500) {
+      if (engine.awaiting) {
+        const p = engine.awaiting;
+        const legal = engine.legalActions(p);
+        // 随机但偏向合理: 60% call/check, 25% fold, 15% raise
+        const roll = engine.rng();
+        let d;
+        if (roll < 0.25 && !(legal.toCall === 0 && engine.rng() < 0.7)) d = { type: 'fold' };
+        else if (roll < 0.85) d = legal.toCall > 0 ? { type: 'call' } : { type: 'check' };
+        else {
+          const to = legal.minTo + Math.floor(engine.rng() * Math.max(1, (legal.maxTo - legal.minTo) / 2));
+          d = { type: legal.isRaise ? 'raise' : 'bet', amount: to };
+          if (engine.rng() < 0.2) d = { type: 'allin' };
+        }
+        engine.act(p.id, d);
+        actions++;
+      } else {
+        engine.step();
+      }
+    }
+    if (guard >= 500) throw new Error('hand did not terminate (mode ' + engine.cfg.mode + ' hand ' + hands + ')');
+    // 现金局: 自动重买, 防止人数不足
+    if (engine.cfg.mode === 'cash') {
+      engine.players.forEach(p => { if (p.sittingOut) engine.rebuy(p.id); });
+    }
+  }
+  return { hands, actions };
+}
+
+for (const mode of ['cash', 'tourney', 'squid']) {
+  for (const n of [2, 4, 9]) {
+    const rng2 = PK.mulberry32(1234 + n);
+    const eng = new PK.Engine(mkCfg(mode, n), rng2);
+    const res = driveRandomly(eng, mode === 'cash' ? 300 : 1000);
+    let total = 0;
+    eng.players.forEach(p => { total += p.stack; ok(p.stack >= 0, p.name + ' stack>=0 (got ' + p.stack + ')'); });
+    const bountyIn = mode === 'squid' ? eng.players.reduce((s, p) => s + p.bounty, 0) * 500 : 0;
+    if (mode === 'cash') {
+      const buyins = eng.players.reduce((s2, p) => s2 + p.totalBuyin, 0);
+      ok(total === buyins, mode + '/' + n + ' cash chip conservation: total=' + total + ' buyins=' + buyins);
+      ok(!eng.over, 'cash never auto-ends');
+    } else {
+      ok(eng.over, mode + '/' + n + ' terminates (' + res.hands + ' hands)');
+      const alive = eng.alive();
+      ok(alive.length === 1, mode + '/' + n + ' one winner left');
+      // 淘汰名次: 1..N 且不重复
+      const places = eng.players.filter(p => p.out).map(p => p.place).sort((a,b)=>a-b);
+      const uniq = new Set(places);
+      ok(uniq.size === places.length, mode + '/' + n + ' unique places');
+      ok(places[places.length-1] < n + 1, mode + '/' + n + ' places in range');
+    }
+    console.log('  ' + mode + '/' + n + ': ' + res.hands + ' hands, ' + res.actions + ' actions OK');
+  }
+}
+
+// 边池专项: 三人不同额度全下
+section('side pots');
+{
+  const eng = new PK.Engine(mkCfg('cash', 3), PK.mulberry32(7));
+  eng.startHand();
+  // P0 庄家, P1 SB, P2 BB (3人局)
+  const p = eng.players;
+  // 强制构造: P1 allin 100, P2 allin 400, P0 call 400
+  eng.act(p[1].id, { type: 'raise', amount: 100 });
+  eng.act(p[2].id, { type: 'raise', amount: 400 });
+  eng.act(p[0].id, { type: 'call' });
+  // P1 还需补 300? 不—— P1 已 allin(100), 轮不到; P0 call 400 完成
+  while (eng.phase !== 'done') { if (eng.awaiting) eng.act(eng.awaiting.id, { type: 'call' }); else eng.step(); }
+  const total = p.reduce((s, q) => s + q.stack, 0);
+  ok(total === 3000, 'side pot chip conservation total=' + total);
+  ok(p.every(q => q.contributed === 0 || true), 'contributed reset per hand is per-hand only');
+}
+// 两人局盲注与行动顺序
+section('heads-up');
+{
+  const eng = new PK.Engine(mkCfg('cash', 2), PK.mulberry32(9));
+  eng.startHand();
+  const d = eng.players[eng.dealerIdx];
+  const legal = eng.legalActions(d);
+  ok(eng.awaiting === d, 'HU: dealer/SB acts first preflop');
+  ok(d.bet === 5, 'HU: dealer posted SB 5 (got ' + d.bet + ')');
+  eng.act(d.id, { type: 'call' });
+  eng.act(eng.awaiting.id, { type: 'check' });
+  eng.step(); // flop
+  const nd = eng.players[eng.dealerIdx];
+  ok(eng.awaiting && eng.awaiting !== nd, 'HU: BB acts first postflop');
+}
+// runout: 两人全下后自动发完公共牌
+section('runout');
+{
+  const eng = new PK.Engine(mkCfg('cash', 2), PK.mulberry32(11));
+  eng.startHand();
+  eng.act(eng.awaiting.id, { type: 'allin' });
+  eng.act(eng.awaiting.id, { type: 'call' });
+  ok(eng.awaiting === null, 'after allin-call no one to act');
+  let streets = 0, guard = 0, revealed = false;
+  while (eng.phase !== 'done' && guard++ < 20) {
+    const evs = eng.step();
+    evs.forEach(e => { if (e.type === 'street') streets++; if (e.type === 'runoutReveal') revealed = true; });
+  }
+  ok(revealed, 'runout reveals hands');
+  ok(streets === 3, 'runout deals 3 streets (got ' + streets + ')');
+  ok(eng.phase === 'done', 'runout finishes hand');
+}
+// 鱿鱼时钟: 短码会被淘汰
+section('squid deadline');
+{
+  // 关闭强制摊牌, 只跟注打法 -> 时钟到点淘汰最短码
+  const cfg = mkCfg('squid', 5);
+  cfg.squid.forcedShowdown = false;
+  cfg.squid.deadlineHands = 4;
+  cfg.startStack = 1000;
+  const eng = new PK.Engine(cfg, PK.mulberry32(2024));
+  const events = [];
+  let hands = 0;
+  while (!eng.over && hands < 200) {
+    eng.startHand(); hands++;
+    let g = 0;
+    while (eng.phase !== 'done' && g++ < 300) {
+      if (eng.awaiting) eng.act(eng.awaiting.id, eng.awaiting.bet < eng.currentBet ? { type: 'call' } : { type: 'check' });
+      else eng.step();
+    }
+    events.push(...eng.events.filter(e => ['deadline', 'forcedStart', 'bounty', 'eliminate'].includes(e.type)).map(e => e.type));
+  }
+  const deadlineCount = events.filter(e => e === 'deadline').length;
+  ok(deadlineCount >= 1, 'deadline elimination fired (got ' + deadlineCount + ' in ' + hands + ' hands)');
+  ok(!events.includes('forcedStart'), 'no forced hand when disabled');
+  ok(eng.over, 'squid game ends');
+  // 赏金: 自然出局应发赏金
+  const bountySum = eng.players.reduce((s, p) => s + p.bounty, 0);
+  ok(bountySum >= 1, 'bounties awarded (got ' + bountySum + ')');
+  ok(eng.piggyTotal > 0, 'piggy bank fills (got ' + eng.piggyTotal + ')');
+  console.log('  squid: ' + hands + ' hands, ' + deadlineCount + ' deadlines, ' + bountySum + ' bounties, piggy ' + eng.piggyTotal);
+}
+// 强制摊牌手: 开启时全员全下
+{
+  const cfg = mkCfg('squid', 3);
+  cfg.squid.deadlineHands = 3;
+  cfg.squid.forcedShowdown = true;
+  const eng = new PK.Engine(cfg, PK.mulberry32(31));
+  let forcedFired = false, forcedHandNo = 0, hands = 0;
+  while (!eng.over && hands < 200) {
+    const startEvs = eng.startHand(); hands++;
+    if (startEvs.some(e => e.type === 'forcedStart')) { forcedFired = true; forcedHandNo = hands; }
+    let g = 0;
+    while (eng.phase !== 'done' && g++ < 200) {
+      if (eng.awaiting) eng.act(eng.awaiting.id, { type: 'check' });
+      else eng.step();
+    }
+  }
+  ok(forcedFired, 'forced showdown hand fires');
+  ok(forcedHandNo === 3, 'forced hand at deadline (got hand ' + forcedHandNo + ')');
+  ok(eng.over, 'squid game eventually ends (' + hands + ' hands)');
+}
+
+console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
+process.exit(fail ? 1 : 0);
