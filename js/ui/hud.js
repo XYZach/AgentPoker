@@ -667,9 +667,19 @@ Hud.updateGTO = function (adv) {
 
 Hud.showGTOMatrix = function (adv) {
   var RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+  var en = PK.I18N.lang === 'en';
   var tables = PK.GTO.tables();
+  function freqOf(pos, label) { return PK.GTO.freq ? PK.GTO.freq(pos, label) : (tables[pos][label] ? 1 : 0); }
+  /* 按加注频率着色: 1=全绿(纯策略), 0~1=绿深浅(混合), 0=弃牌 */
+  function shade(cell, f, label) {
+    cell.classList.toggle('raise', f > 0);
+    cell.classList.toggle('fold', f === 0);
+    if (f > 0 && f < 1) cell.style.background = 'rgba(46, 204, 113, ' + (0.14 + 0.41 * f).toFixed(3) + ')';
+    else cell.style.background = '';
+    cell.title = f > 0 ? PK.t('加注') + ' ' + Math.round(f * 100) + '%' : PK.t('弃牌');
+  }
   var html = '<h3>' + PK.t('GTO 翻前开牌范围') + '</h3>' +
-    '<div class="gto-sub dim">' + PK.t('简化版 · 100bb · 仅覆盖翻前未加注底池(面对加注/翻后不适用, 用胜率+赔率)') + '</div>' +
+    '<div class="gto-sub dim">' + PK.t('简化版 · 100bb · 颜色越绿加注频率越高 · 仅覆盖翻前未加注底池') + '</div>' +
     '<div class="gto-tabs">';
   ['EP', 'MP', 'CO', 'BTN', 'SB'].forEach(function (pos) {
     html += '<button class="gto-tab' + (adv && adv.pos === pos ? ' sel' : '') + '" data-pos="' + pos + '">' + pos + '</button>';
@@ -678,29 +688,32 @@ Hud.showGTOMatrix = function (adv) {
   for (var i = 0; i < 13; i++) {
     for (var j = 0; j < 13; j++) {
       var label = i === j ? RANKS[i] + RANKS[i] : i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
-      var act = tables[adv && tables[adv.pos] ? adv.pos : 'BTN'][label] ? 'raise' : 'fold';
+      var f = freqOf(adv && tables[adv.pos] ? adv.pos : 'BTN', label);
       var cur = adv && adv.cls === label ? ' cur' : '';
-      html += '<div class="gto-cell ' + act + cur + '">' + label + '</div>';
+      html += '<div class="gto-cell' + cur + '" data-label="' + label + '">' + label + '</div>';
     }
   }
   html += '</div><div class="gto-legend">' +
-    '<span class="gto-cell raise">' + PK.t('加注') + '</span>' +
+    '<span class="gto-cell raise">' + PK.t('总是加注') + '</span>' +
+    '<span class="gto-cell raise" style="background: rgba(46, 204, 113, 0.35)">' + PK.t('混合加注') + '</span>' +
     '<span class="gto-cell fold">' + PK.t('弃牌') + '</span>' +
     (adv ? '<span class="gto-cell cur">' + PK.t('当前手牌') + ' ' + adv.cls + '</span>' : '') +
     '</div><div class="modal-btns"><button class="btn primary" data-close="ok">' + PK.t('知道了') + '</button></div>';
   /* Hud.modal 返回的是 Promise; 事件绑定要挂在真实弹窗节点上 */
   var m = this.modal(html, { cls: 'modal-gto' });
   var box = document.querySelector('.modal-gto');
+  if (!box) return m;
+  /* 初始着色(含默认选中位置) */
+  var curPos = adv && tables[adv.pos] ? adv.pos : 'BTN';
+  $$('.gto-grid-wrap .gto-cell', box).forEach(function (cell) {
+    shade(cell, freqOf(curPos, cell.dataset.label), cell.dataset.label);
+  });
   $$('.gto-tab', box).forEach(function (btn) {
     btn.onclick = function () {
-      var pos = btn.dataset.pos;
+      curPos = btn.dataset.pos;
       $$('.gto-tab', box).forEach(function (b) { b.classList.toggle('sel', b === btn); });
-      $$('.gto-grid-wrap .gto-cell', box).forEach(function (cell, k) {
-        var i = Math.floor(k / 13), j = k % 13;
-        var label = i === j ? RANKS[i] + RANKS[i] : i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
-        cell.classList.toggle('raise', !!tables[pos][label]);
-        cell.classList.toggle('fold', !tables[pos][label]);
-        cell.classList.toggle('cur', !!adv && adv.cls === label);
+      $$('.gto-grid-wrap .gto-cell', box).forEach(function (cell) {
+        shade(cell, freqOf(curPos, cell.dataset.label), cell.dataset.label);
       });
     };
   });

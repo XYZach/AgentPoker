@@ -16,6 +16,16 @@
     SB: ['22+', 'A2s+', 'K5s+', 'Q5s+', 'J7s+', 'T7s+', '96s+', '86s+', '76s', '65s', '54s', 'A7o+', 'K9o+', 'Q9o+', 'J9o+', 'T9o']
   };
 
+  /* 混合策略(简化 GTO): 范围边界牌的部分加注频率 0~1 (solver 输出的近似)。
+   * 只放 OPEN 之外的牌; freq() 里 OPEN 内的牌恒为 1 */
+  var MIXED = {
+    EP:  { 'ATo': 0.5, 'A8s': 0.3, 'QTs': 0.45, 'J9s': 0.35, 'K9s': 0.35, 'T8s': 0.3, 'A9o': 0.3, 'KJo': 0.4 },
+    MP:  { 'A6s': 0.5, 'K8s': 0.45, 'Q8s': 0.4, 'J8s': 0.4, '97s': 0.3, 'A9o': 0.45, 'QJo': 0.4, 'JTo': 0.35, 'KTo': 0.4, 'T9o': 0.3 },
+    CO:  { 'K8s': 0.55, 'Q8s': 0.45, 'J8s': 0.45, 'T8s': 0.4, '97s': 0.35, '65s': 0.4, '54s': 0.35, 'A8o': 0.5, 'K9o': 0.4, 'Q9o': 0.35, 'J9o': 0.35, 'T9o': 0.3 },
+    BTN: { 'Q3s': 0.4, 'Q2s': 0.3, 'J5s': 0.45, 'J4s': 0.35, 'T5s': 0.45, 'T4s': 0.3, '95s': 0.35, '85s': 0.35, '75s': 0.3, '64s': 0.3, 'A6o': 0.5, 'A5o': 0.45, 'A4o': 0.35, 'K8o': 0.35, 'Q9o': 0.4, 'J9o': 0.35, 'T9o': 0.3, '98o': 0.25 },
+    SB:  { 'K4s': 0.5, 'K3s': 0.4, 'K2s': 0.35, 'Q4s': 0.4, 'Q3s': 0.3, 'J6s': 0.5, 'J5s': 0.4, 'J4s': 0.35, 'T6s': 0.45, 'T5s': 0.35, '95s': 0.4, '85s': 0.35, '75s': 0.3, '64s': 0.3, 'A6o': 0.45, 'A5o': 0.4, 'A4o': 0.35, 'A3o': 0.3, 'K8o': 0.3, 'Q8o': 0.3, 'J8o': 0.3, 'T8o': 0.25, '98o': 0.25 }
+  };
+
   var CHAR2RANK = { A: 14, K: 13, Q: 12, J: 11, T: 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 };
   /* 手牌类标签: 10 用 'T' (标准记法), 与范围串一致 — 不能用 RANK_NAME ('10') */
   var RANK_CHAR = { 14: 'A', 13: 'K', 12: 'Q', 11: 'J', 10: 'T', 9: '9', 8: '8', 7: '7', 6: '6', 5: '5', 4: '4', 3: '3', 2: '2' };
@@ -68,6 +78,15 @@
     return _cache;
   }
 
+  /* 加注频率 0~1: OPEN 内 = 1, 混合表 = 频率, 其余 = 0 */
+  function freq(pos, cls) {
+    if (!cls) return 0;
+    var t = tables()[pos];
+    if (t && t[cls]) return 1;
+    var m = MIXED[pos];
+    return (m && m[cls]) || 0;
+  }
+
   /* 玩家位置: dealerIdx 起步序 0=BTN 1=SB 2=BB, 末位=CO 次末=MP 其余=EP */
   function positionOf(engine, playerId) {
     var n = engine.players.length;
@@ -102,15 +121,16 @@
     if (!pos) return null;
     var cls = handClass(hero.hole);
     if (!cls) return null;
-    if (pos === 'BB') return { cls: cls, pos: 'BB', act: 'check' };
-    var t = tables()[pos];
-    return { cls: cls, pos: pos, act: t[cls] ? 'raise' : 'fold' };
+    if (pos === 'BB') return { cls: cls, pos: 'BB', act: 'check', freq: 0 };
+    var f = freq(pos, cls);
+    return { cls: cls, pos: pos, act: f >= 0.5 ? 'raise' : 'fold', freq: f };
   }
 
   PK.GTO = {
     handClass: handClass,
     parseRange: parseRange,
     tables: tables,
+    freq: freq,
     positionOf: positionOf,
     advice: advice
   };

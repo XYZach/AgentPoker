@@ -478,6 +478,20 @@ section('gto');
   ok(s1.pos === 'SB' && s1.act === 'raise', '3max dealer+1 = SB uses SB chart');
   const s2 = PK.GTO.advice(t3, 1);
   ok(s2.pos === 'BB' && s2.act === 'check', '3max dealer+2 = BB check');
+  // 混合策略频率: 纯加注=1, 边界牌 0~1, 弃牌=0; advice 按频率 >=0.5 选动作
+  ok(PK.GTO.freq('EP', 'AA') === 1, 'EP AA freq = 1');
+  ok(PK.GTO.freq('EP', 'KJs') === 1, 'EP KJs pure raise (inside KTs+)');
+  ok(PK.GTO.freq('EP', 'A8s') > 0 && PK.GTO.freq('EP', 'A8s') < 1, 'EP A8s mixed freq in (0,1)');
+  ok(PK.GTO.freq('EP', '72o') === 0, 'EP 72o freq = 0');
+  ok(PK.GTO.freq('BTN', 'A6o') === 0.5 && PK.GTO.freq('SB', 'T8o') === 0.25, 'mixed table values read through');
+  ok(PK.GTO.freq('MP', 'KJs') === 1, 'MP KJs pure raise (already in MP range)');
+  // 混合牌的 advice: ATo EP 频率 0.5 >= 0.5 -> raise; K9s EP 0.35 -> fold
+  const eM = mockEng(0, 10, [C(14, 0), C(10, 1)]); // ATo
+  const m1 = PK.GTO.advice(eM, 0);
+  ok(m1.act === 'raise' && m1.freq === 0.5, 'EP ATo mixed -> raise (freq 0.5)');
+  const eF = mockEng(0, 10, [C(13, 0), C(9, 0)]); // K9s (EP mixed 0.35)
+  const f1 = PK.GTO.advice(eF, 0);
+  ok(f1.act === 'fold' && f1.freq === 0.35, 'EP K9s mixed 0.35 -> fold recommendation');
 }
 
 /* ---------- AI 面对全下的应对 ---------- */
