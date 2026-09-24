@@ -42,7 +42,7 @@ function startGame(cfg) {
   var stage = document.getElementById('stage');
   if (App.scene) App.scene.destroy();
   PK.Hud.showGame(); // 先显示容器, 否则 #stage 尺寸为 0
-  App.scene = new PK.Scene3D(stage, { mode: cfg.mode });
+  App.scene = new PK.Scene2D(stage, { mode: cfg.mode });
   App.scene.setSpeed(App.speed);
   PK.Hud.initGame(App.engine, App.scene);
   PK.Hud.onSpeedChange = function (s) { App.speed = s; App.scene.setSpeed(s); };

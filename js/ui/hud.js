@@ -344,6 +344,7 @@ Hud.initGame = function (engine, scene) {
   $$('#tb-camera button').forEach(function (btn) {
     btn.onclick = function () { Hud.sfx('click'); scene.cameraPreset(btn.dataset.cam); };
   });
+  $('#tb-camera').classList.toggle('hidden', !!scene.is2d); // 2D 模式无相机
   $('#tb-menu').onclick = function () { if (Hud.onMenu) Hud.onMenu(); };
   $('#tb-help').onclick = function () { Hud.showHelp(); };
   $('#log-toggle').onclick = function () { $('#log-panel').classList.toggle('open'); };
@@ -717,7 +718,7 @@ Hud.showHelp = function () {
     '<p><b>记牌器</b>(左栏):绿色=公共牌, 蓝色=你的手牌, 红色=已弃牌(开启"亮弃牌"时)。实时统计已见牌。</p>' +
     '<p><b>胜率</b>(右栏):蒙特卡洛模拟 vs 场上对手数, 已见死牌会从模拟中剔除; 同时显示底池赔率参考。</p>' +
     '<p><b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。</p>' +
-    '<p><b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。鼠标拖动旋转视角, 滚轮缩放。</p>' +
+    '<p><b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。</p>' +
     '<p class="dim">公平性: AI 与建议只用公开信息+自身手牌, 绝不偷看牌堆。</p>' +
     '</div><div class="modal-btns"><button class="btn primary" data-close="ok">开始游戏</button></div>';
   return this.modal(html, { cls: 'modal-help' });

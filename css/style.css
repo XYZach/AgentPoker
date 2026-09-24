@@ -112,7 +112,7 @@ input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
 #game { position: fixed; inset: 0; }
 #stage { position: absolute; inset: 0; }
 #stage canvas { display: block; }
-#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; }
 
 /* 玩家铭牌 */
 .nplate {
@@ -122,6 +122,12 @@ input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
   pointer-events: none;
 }
 .nplate.turn { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 24px rgba(245, 185, 66, 0.35); }
+/* 紧凑模式(7人以上): 铭牌与下注标签缩小 */
+body.pk-compact .nplate { min-width: 96px; padding: 4px 7px 5px; }
+body.pk-compact .nplate .np-row1 { font-size: 11px; }
+body.pk-compact .nplate .np-stack { font-size: 11.5px; }
+body.pk-compact .nplate .np-style { font-size: 9px; padding: 1px 4px; }
+body.pk-compact .bet-label { font-size: 10px; padding: 1px 6px; }
 body[data-mode="squid"] .nplate.turn { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink), 0 0 24px rgba(255, 45, 120, 0.4); }
 .nplate.folded { opacity: 0.55; }
 .nplate.out { opacity: 0.35; filter: grayscale(1); }
@@ -425,4 +431,142 @@ body[data-mode="squid"] .panel-title { color: var(--teal); }
   #panel-equity { width: 196px; }
   #actionbar { min-width: 480px; }
   #btn-llm { position: static; transform: none; margin-top: 8px; }
+}
+
+/* ============ 2D 场景 (DOM 渲染) ============ */
+.scene2d { position: absolute; inset: 0; overflow: hidden; z-index: 1;
+  background:
+    radial-gradient(1100px 520px at 50% 30%, #2c2731 0%, #1b1720 55%, #121016 100%);
+}
+/* 桌沿(木) / 桌布(参考图: 蓝色) / 下注线 */
+.t2d-rail { position: absolute; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 38%, #5a4630 0%, #4a3a26 45%, #332818 100%);
+  box-shadow: 0 18px 60px rgba(0,0,0,.55), inset 0 2px 6px rgba(255,235,200,.22), inset 0 -6px 14px rgba(0,0,0,.5);
+  z-index: 1;
+}
+.t2d-felt { position: absolute; border-radius: 50%; z-index: 2;
+  background: radial-gradient(ellipse at 50% 42%, #1583cf 0%, #0d6cb3 48%, #09538c 82%, #074470 100%);
+  box-shadow: inset 0 0 60px rgba(0,10,30,.45), inset 0 2px 8px rgba(0,0,0,.35);
+}
+.t2d-line { position: absolute; border-radius: 50%; z-index: 3; pointer-events: none;
+  border: 2px dashed rgba(255,255,255,.22);
+}
+.t2d-logo { position: absolute; z-index: 3; transform: translate(-50%,-50%);
+  font-size: 26px; font-weight: 800; letter-spacing: 8px; white-space: nowrap;
+  color: rgba(255,255,255,.09); pointer-events: none;
+}
+/* 鱿鱼场配色 */
+body[data-mode="squid"] .t2d-rail { background: radial-gradient(ellipse at 50% 38%, #1e3a34 0%, #142a25 45%, #0c1b17 100%); }
+body[data-mode="squid"] .t2d-felt { background: radial-gradient(ellipse at 50% 42%, #0f6f60 0%, #0a574c 48%, #074038 82%, #05302a 100%); }
+body[data-mode="squid"] .t2d-line { border-color: rgba(255,45,120,.3); }
+
+/* 牌堆 / 弃牌堆 */
+.t2d-deck { position: absolute; z-index: 5; width: 38px; height: 53px; transform: translate(-50%,-50%); }
+.t2d-deckcard { position: absolute; inset: 0; border-radius: 4px;
+  background: #b02e3c; border: 1.5px solid #f4f2ec;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 4px, transparent 4px 9px);
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.t2d-deckcard:nth-child(2) { transform: translate(2px,-2px); }
+.t2d-deckcard:nth-child(3) { transform: translate(4px,-4px); }
+.t2d-muck { position: absolute; z-index: 4; transform: translate(-50%,-50%);
+  font-size: 10.5px; color: rgba(255,255,255,.28); letter-spacing: 2px; pointer-events: none;
+}
+
+/* ---------- 卡牌 ---------- */
+.c2 { position: absolute; left: 0; top: 0; z-index: 6; perspective: 420px; will-change: transform, opacity; }
+.c2i { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
+.c2f { position: absolute; inset: 0; border-radius: 4.5px; backface-visibility: hidden;
+  box-shadow: 0 2px 7px rgba(0,0,0,.42);
+}
+.c2-front { background: linear-gradient(160deg, #fdfdf8, #f1f0e6); border: 1px solid #d8d6c8; }
+.c2-back { transform: rotateY(180deg); background: #b02e3c; border: 1.5px solid #f4f2ec;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 4px, transparent 4px 9px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.1) 0 4px, transparent 4px 9px);
+}
+.c2-back.sq { background: #0d1f1a; border-color: var(--pink);
+  background-image: repeating-linear-gradient(45deg, rgba(255,45,120,.22) 0 4px, transparent 4px 9px);
+}
+.c2-corner { position: absolute; top: 3px; left: 4px; display: flex; flex-direction: column; align-items: center;
+  font-family: Georgia, "Times New Roman", serif; color: #1c1c28; line-height: 1;
+}
+.c2-corner b { font-size: 15px; font-weight: 800; }
+.c2-corner i { font-style: normal; font-size: 12px; margin-top: 1px; }
+.c2-big { position: absolute; right: 5px; bottom: 3px; font-family: Georgia, serif; font-size: 26px; color: #1c1c28; }
+.c2-corner.red, .c2-big.red { color: #c0392b; }
+.c2.win { z-index: 9; }
+.c2.win .c2-front { box-shadow: 0 0 0 2px var(--gold), 0 0 16px 3px rgba(245,185,66,.75); }
+.c2.win .c2f { filter: brightness(1.06); }
+
+/* ---------- 筹码 ---------- */
+.chips2d { position: absolute; z-index: 7; width: 0; height: 0; will-change: left, top, opacity; }
+.chip2d { position: absolute; bottom: 0; left: 0; width: 22px; height: 22px; border-radius: 50%;
+  transform: translateX(-50%);
+  border: 3px dashed rgba(255,255,255,.85);
+  box-shadow: 0 1px 2px rgba(0,0,0,.45), inset 0 0 0 2px rgba(0,0,0,.18);
+}
+
+/* ---------- 头像 ---------- */
+.av2d { position: absolute; z-index: 8; width: 52px; height: 52px; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--avc, #57677f);
+  background-image: linear-gradient(160deg, rgba(255,255,255,.28), rgba(0,0,0,.3));
+  border: 2px solid rgba(255,255,255,.5);
+  font-size: 21px; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  transition: opacity .5s, filter .5s;
+}
+.av2d.dealer { width: 46px; height: 46px; font-size: 20px;
+  transform: translate(-50%,-50%) translateX(var(--sweep, 0px));
+  background: #23252d; border-color: rgba(255,255,255,.65);
+  background-image: linear-gradient(160deg, #3a3d47, #171920);
+}
+.scene2d.squid .av2d.squiddealer { background-image: linear-gradient(160deg, #233f39, #0d1f1a); border-color: var(--teal); }
+.av2d.hero { border-color: var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 3px rgba(245,185,66,.25); }
+.av2d.guard { background: repeating-linear-gradient(45deg, #ff2d78 0 6px, #12060c 6px 12px); }
+.av2d.frontman { background: #0a0a0e; border-color: var(--pink); }
+.av2d.thinking { animation: avthink 1.2s ease-in-out infinite; }
+@keyframes avthink {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 0 rgba(245,185,66,.55); }
+  50% { box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 9px rgba(245,185,66,0); }
+}
+body[data-mode="squid"] .av2d.thinking { animation: avthinksq 1.2s ease-in-out infinite; }
+@keyframes avthinksq {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 0 rgba(255,45,120,.6); }
+  50% { box-shadow: 0 4px 14px rgba(0,0,0,.5), 0 0 0 9px rgba(255,45,120,0); }
+}
+.av2d.folded { filter: grayscale(.9); opacity: .5; }
+.av2d.out { filter: grayscale(1); opacity: .18; transform: translate(-50%,-50%) scale(.8); }
+
+/* 庄家钮 */
+.dbtn2d { position: absolute; z-index: 9; width: 24px; height: 24px; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: radial-gradient(circle at 35% 30%, #fff, #d8d6c8);
+  color: #1c1c28; font-size: 13px; font-weight: 900; line-height: 24px; text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.5);
+}
+
+/* 存钱罐 */
+.piggy2d { position: absolute; z-index: 8; font-size: 34px; transform: translate(-50%,-50%);
+  filter: drop-shadow(0 4px 10px rgba(255,45,120,.45)); }
+.piggy2d.bounce { animation: pigbounce .55s ease; }
+@keyframes pigbounce { 30% { transform: translate(-50%,-50%) scale(1.3); } 60% { transform: translate(-50%,-50%) scale(.92); } }
+
+/* 淘汰红闪 */
+.flash2d { position: absolute; inset: 0; z-index: 24; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(160,0,30,.55) 100%);
+  transition: opacity .3s;
+}
+.flash2d.on { opacity: 1; }
+
+/* 彩带 / 金币 */
+.confetti2d { position: absolute; z-index: 20; width: 8px; height: 12px; border-radius: 2px;
+  transform: translate(-50%,-50%) rotate(24deg); pointer-events: none;
+}
+.coin2d { position: absolute; z-index: 20; width: 14px; height: 14px; border-radius: 50%;
+  transform: translate(-50%,-50%);
+  background: radial-gradient(circle at 35% 30%, #ffe9a3, var(--gold) 60%, #b98a1e);
+  box-shadow: 0 0 8px rgba(245,185,66,.8); pointer-events: none;
 }
