@@ -1,5 +1,7 @@
 # 🦑 AgentPoker — 德州扑克 · 现金局 · 锦标赛 · 鱿鱼场
 
+**[English](README.en.md)** | 中文
+
 纯原生 JS 的单页德州扑克游戏(2D 牌桌渲染),无构建步骤、无后端,打开即玩。中英双语。
 
 **在线游玩**: https://xyzach.github.io/AgentPoker/
