@@ -14,6 +14,16 @@ Hud.savePrefs = function () {
   try { localStorage.setItem('agentpoker.prefs', JSON.stringify(this.prefs)); } catch (e) { }
 };
 
+/* 复盘开关状态同步: 顶栏按钮高亮 + 菜单/大厅勾选框 */
+Hud.setReviewOn = function (on) {
+  var tb = document.getElementById('tb-review');
+  if (tb) tb.classList.toggle('on', !!on);
+  var menu = document.getElementById('menu-review');
+  if (menu) menu.checked = !!on;
+  var lob = document.getElementById('opt-review');
+  if (lob) lob.checked = !!on;
+};
+
 /* ================= 音效 (WebAudio 合成) ================= */
 Hud.sfx = function (name) {
   if (!Hud.prefs.sound) return;
@@ -289,6 +299,7 @@ Hud.initLobby = function (onStart) {
     optReview.addEventListener('change', function () {
       Hud.prefs.review = optReview.checked;
       Hud.savePrefs();
+      Hud.setReviewOn(optReview.checked);
     });
   }
 
@@ -387,6 +398,12 @@ Hud.initGame = function (engine, scene) {
     savePrefs();
   };
   $('#tb-sound').textContent = Hud.prefs.sound ? '🔊' : '🔇';
+  /* 复盘开关: 游戏内随时切换(顶栏), 状态金色高亮 */
+  var tbReview = $('#tb-review');
+  if (tbReview) {
+    tbReview.classList.toggle('on', !!Hud.prefs.review);
+    tbReview.onclick = function () { Hud.sfx('click'); if (Hud.onReviewToggle) Hud.onReviewToggle(); };
+  }
   $$('#tb-speed button').forEach(function (btn) {
     btn.classList.toggle('sel', +btn.dataset.s === Hud.prefs.speed);
     btn.onclick = function () {

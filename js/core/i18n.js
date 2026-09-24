@@ -158,6 +158,7 @@ var EN = {
   '每手结束后询问: 直接下一局, 或先复盘(查看所有人底牌与动作)': 'After each hand, choose: continue, or review first (see everyone\'s hole cards & actions)',
   '手 · 要复盘吗?': ' · review this hand?',
   '下一局': 'Next Hand', '复盘本局': 'Review This Hand', '复盘': 'Hand Review',
+  '复盘已开启': 'Hand review ON', '复盘已关闭': 'Hand review OFF', '每手结束后询问': 'will ask after each hand',
   '底牌': 'Hole Cards', '结果': 'Result', '动作时间线': 'Action Timeline',
   '开始游戏': 'Start Playing',
 

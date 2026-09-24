@@ -219,6 +219,8 @@ body[data-mode="squid"] #tb-mode { color: var(--pink); }
   background: #1a2029; border: 1px solid var(--panel-border); color: var(--text);
   width: 30px; height: 26px; border-radius: 7px; font-size: 13px;
 }
+/* 顶栏复盘开关: 开启时金色高亮 */
+#tb-review.on { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 8px rgba(214, 158, 46, 0.35); }
 
 /* 左栏: 记牌器(默认折叠) */
 #panel-tracker {

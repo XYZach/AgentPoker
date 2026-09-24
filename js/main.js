@@ -51,6 +51,12 @@ function startGame(cfg) {
   PK.Hud.initGame(App.engine, App.scene);
   PK.Hud.onSpeedChange = function (s) { App.speed = s; App.scene.setSpeed(s); };
   PK.Hud.onMenu = showMenu;
+  PK.Hud.onReviewToggle = function () {
+    PK.Hud.prefs.review = !PK.Hud.prefs.review;
+    PK.Hud.savePrefs();
+    PK.Hud.setReviewOn(PK.Hud.prefs.review);
+    PK.Hud.toast(PK.t(PK.Hud.prefs.review ? '复盘已开启' : '复盘已关闭') + ' · ' + PK.t('每手结束后询问'), 'info', 1800);
+  };
   PK.Hud.onAdviceRequest = requestAdvice;
   PK.Hud.onAdviceApply = applyAdvice;
   App.scene.buildPlayers(App.engine.players);
@@ -618,8 +624,7 @@ function showMenu() {
   if (cb) cb.onchange = function () {
     PK.Hud.prefs.review = cb.checked;
     PK.Hud.savePrefs();
-    var lob = document.getElementById('opt-review');
-    if (lob) lob.checked = cb.checked;
+    PK.Hud.setReviewOn(cb.checked);
   };
 }
 
