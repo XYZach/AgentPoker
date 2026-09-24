@@ -6,8 +6,12 @@ var $ = function (sel, root) { return (root || document).querySelector(sel); };
 var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
 var Hud = PK.Hud = {
-  prefs: { sound: true, speed: 1, autoNext: true },
+  prefs: { sound: true, speed: 1, autoNext: true, review: false },
   _raf: null
+};
+
+Hud.savePrefs = function () {
+  try { localStorage.setItem('pk3d.prefs', JSON.stringify(this.prefs)); } catch (e) { }
 };
 
 /* ================= 音效 (WebAudio 合成) ================= */
@@ -278,6 +282,15 @@ Hud.initLobby = function (onStart) {
     onStart(cfg);
   });
 
+  var optReview = $('#opt-review');
+  if (optReview) {
+    optReview.checked = !!Hud.prefs.review;
+    optReview.addEventListener('change', function () {
+      Hud.prefs.review = optReview.checked;
+      Hud.savePrefs();
+    });
+  }
+
   buildRoster();
 };
 
@@ -390,9 +403,7 @@ Hud.initGame = function (engine, scene) {
   $('#tb-help').onclick = function () { Hud.showHelp(); };
   $('#log-toggle').onclick = function () { $('#log-panel').classList.toggle('open'); };
   savePrefs();
-  function savePrefs() {
-    try { localStorage.setItem('pk3d.prefs', JSON.stringify(Hud.prefs)); } catch (e) { }
-  }
+  function savePrefs() { Hud.savePrefs(); }
 };
 
 function esc(s) { return String(s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
@@ -740,6 +751,95 @@ Hud.showRebuy = function (playerName) {
     '<h3>' + PK.t('筹码耗尽') + '</h3><p>' + esc(playerName) + PK.t('的筹码已输光。重新买入回到牌桌吗？') + '</p>' +
     '<div class="modal-btns"><button class="btn primary" data-close="yes">' + PK.t('重新买入') + '</button><button class="btn" data-close="no">' + PK.t('离座(结束场次)') + '</button></div>'
   );
+};
+
+/* ================= 每局复盘 ================= */
+Hud.showHandEndChoice = function (log) {
+  var isEn = PK.I18N.lang === 'en';
+  var sub = isEn ? 'Hand #' + log.handNo + ' finished · review?' : PK.t('第') + ' ' + log.handNo + ' ' + PK.t('手 · 要复盘吗?');
+  return this.modal(
+    '<h3>' + PK.t('本手结束') + '</h3>' +
+    '<p>' + sub + '</p>' +
+    '<div class="modal-btns"><button class="btn primary" data-close="next">' + PK.t('下一局') + '</button>' +
+    '<button class="btn" data-close="review">' + PK.t('复盘本局') + '</button></div>'
+  );
+};
+
+Hud.showReview = function (log) {
+  var engine = this.engine;
+  var isEn = PK.I18N.lang === 'en';
+  var streetNames = [PK.t('翻牌前'), PK.t('翻牌 🌟'), PK.t('转牌'), PK.t('河牌')];
+  var nameOf = {};
+  log.players.forEach(function (rp) { nameOf[rp.id] = rp.name; });
+
+  function cardHtml(c) {
+    var s = c & 3;
+    return '<span class="rv-card' + ((s === 1 || s === 2) ? ' red' : '') + '">' + PK.cardName(c) + '</span>';
+  }
+  function cardsHtml(cs) { return (cs || []).map(cardHtml).join(''); }
+
+  /* 成牌名: showdown pots 与 handEnd result 里都有 */
+  var catById = {};
+  ((log.result && log.result.hands) || []).forEach(function (h) { catById[h.playerId] = h.catName; });
+  log.pots.forEach(function (pot) {
+    (pot.hand || []).forEach(function (h) { catById[h.playerId] = h.catName; });
+  });
+  var awardById = {};
+  var potTotal = 0;
+  log.awards.forEach(function (a) { awardById[a.pid] = (awardById[a.pid] || 0) + a.amount; potTotal += a.amount; });
+
+  var html = '<h3>📊 ' + PK.t('复盘') + ' · ' + (isEn ? 'Hand #' : PK.t('第') + ' ') + log.handNo + (isEn ? '' : ' ' + PK.t('手')) + '</h3>';
+  html += '<div class="res-sub">' + PK.t('盲注') + ' ' + log.sb + '/' + log.bb +
+    (log.ante ? ' (' + PK.t('前注') + ' ' + log.ante + ')' : '') +
+    ' · ' + PK.t('彩池') + ' ' + PK.fmt(potTotal) + '</div>';
+
+  html += '<div class="rv-sec-title">' + PK.t('公共牌') + '</div><div class="rv-board">';
+  if (!log.streets.length) html += '<span class="dim">—</span>';
+  log.streets.forEach(function (s) {
+    html += '<span class="rv-street">' + streetNames[s.street] + '</span>' + cardsHtml(s.cards);
+  });
+  html += '</div>';
+
+  html += '<div class="rv-sec-title">' + PK.t('玩家') + '</div>';
+  html += '<table class="res-table"><tr><th>' + PK.t('风格') + '</th><th>' + PK.t('玩家') + '</th><th>' + PK.t('底牌') + '</th><th>' + PK.t('结果') + '</th><th>' + PK.t('盈亏') + '</th></tr>';
+  log.players.forEach(function (rp) {
+    var p = engine.players[rp.id];
+    if (!p || !rp.dealt) return;
+    var hole = p.hole && p.hole.length >= 2 ? p.hole : null;
+    var award = awardById[rp.id] || 0;
+    var net = p.stack - rp.startStack;
+    var res;
+    if (award > 0) res = '🏆 +' + PK.fmt(award) + (catById[rp.id] ? ' · ' + catById[rp.id] : '');
+    else if (catById[rp.id]) res = catById[rp.id];
+    else if (log.elims.indexOf(rp.id) >= 0) res = '💀 ' + PK.t('被淘汰');
+    else res = PK.t('弃牌');
+    html += '<tr class="' + (rp.isHero ? 'hero-row' : '') + '">' +
+      '<td>' + (rp.isHero ? '⭐' : '<span class="np-style">' + PK.t((PK.AI_STYLES[rp.styleKey] || { label: rp.styleKey || '' }).label) + '</span>') + '</td>' +
+      '<td>' + esc(rp.name) + '</td>' +
+      '<td>' + (hole ? cardsHtml(hole) : '—') + '</td>' +
+      '<td>' + res + '</td>' +
+      '<td>' + (net >= 0 ? '+' : '') + PK.fmt(net) + '</td></tr>';
+  });
+  html += '</table>';
+
+  html += '<div class="rv-sec-title">' + PK.t('动作时间线') + '</div><div class="rv-tl">';
+  var curStreet = -1;
+  var actNames = { ante: PK.t('前注'), sb: PK.t('小盲'), bb: PK.t('大盲'), fold: PK.t('弃牌'), check: PK.t('过牌'), call: PK.t('跟注'), bet: PK.t('下注'), raise: PK.t('加注'), allin: PK.t('全下') };
+  log.actions.forEach(function (a) {
+    if (a.street !== curStreet) {
+      curStreet = a.street;
+      html += '<div class="rv-tl-street">—— ' + streetNames[a.street] + ' ——</div>';
+    }
+    var txt = actNames[a.act] || a.act;
+    if (a.act === 'raise') txt = PK.t('加注到') + ' ' + PK.fmt(a.to);
+    else if (a.act === 'bet' || a.act === 'call' || a.act === 'sb' || a.act === 'bb' || a.act === 'ante') txt += ' ' + PK.fmt(a.amount);
+    html += '<div class="rv-tl-row' + (a.act === 'fold' ? ' dim' : '') + '"><span class="rv-tl-name">' + esc(nameOf[a.pid] != null ? nameOf[a.pid] : '?') + '</span><b>' + txt + '</b></div>';
+  });
+  if (!log.actions.length) html += '<div class="dim">—</div>';
+  html += '</div>';
+
+  html += '<div class="modal-btns"><button class="btn primary" data-close="next">' + PK.t('下一局') + '</button></div>';
+  return this.modal(html, { cls: 'modal-review' });
 };
 
 Hud.showResults = function (data) {

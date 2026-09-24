@@ -152,6 +152,15 @@ var EN = {
   '弃牌堆': 'Muck',
   '彩池': 'Pot', '荷官': 'Dealer', '奖池': 'Prize pool',
   '赏金': 'Bounty', '时限到!': 'Time\'s up!',
+
+  /* 每局复盘 */
+  '每局复盘': 'Hand Review', '风格': 'Style',
+  '每手结束后询问: 下一局或复盘': 'after each hand: next hand or review',
+  '每手结束后询问: 直接下一局, 或先复盘(查看所有人底牌与动作)': 'After each hand, choose: continue, or review first (see everyone\'s hole cards & actions)',
+  '手 · 要复盘吗?': ' · review this hand?',
+  '下一局': 'Next Hand', '复盘本局': 'Review This Hand', '复盘': 'Hand Review',
+  '底牌': 'Hole Cards', '结果': 'Result', '动作时间线': 'Action Timeline',
+
   '鱿鱼时钟: ': 'Squid clock: ',
   '本手结束后淘汰最短码!': 'Shortest stack busts after this hand!',
   '✓ 已启用 — AI 会给建议并参与人机决策': '✓ Enabled — AI advises you and joins bot decisions',

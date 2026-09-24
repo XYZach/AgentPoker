@@ -73,8 +73,18 @@ async function gameLoop() {
     await playHand();
     if (engine.over || !App.running) break;
     await handleRebuys();
-    if (engine.over) break;
-    await delay(1500);
+    if (engine.over || !App.running) break;
+    if (PK.Hud.prefs.review && App.handLog) {
+      var choice = await PK.Hud.showHandEndChoice(App.handLog);
+      if (!App.running || engine.over) break;
+      if (choice === 'review') {
+        await PK.Hud.showReview(App.handLog);
+        if (!App.running || engine.over) break;
+      }
+      await delay(500);
+    } else {
+      await delay(1500);
+    }
   }
   if (App.running && engine.over) {
     await delay(900);
@@ -170,6 +180,14 @@ async function handleEvent(ev) {
   var engine = App.engine, scene = App.scene;
   switch (ev.type) {
     case 'handStart': {
+      App.handLog = {
+        handNo: ev.handNo, sb: ev.sb, bb: ev.bb, ante: ev.ante, level: ev.level,
+        street: 0, board: [], streets: [], actions: [], awards: [], pots: [], elims: [],
+        result: null,
+        players: engine.players.map(function (p) {
+          return { id: p.id, name: p.name, isHero: !!p.isHuman, styleKey: p.styleKey, startStack: p.stack, dealt: p.dealt };
+        })
+      };
       scene.clearHandVisuals();
       scene.resetAvatarStates();
       PK.Hud.clearBlindBadges();
@@ -188,6 +206,9 @@ async function handleEvent(ev) {
     }
     case 'post': {
       var p = engine.players[ev.playerId];
+      if (App.handLog && (ev.kind === 'ante' || ev.kind === 'sb' || ev.kind === 'bb')) {
+        App.handLog.actions.push({ street: 0, pid: ev.playerId, act: ev.kind, amount: ev.amount });
+      }
       scene.setBet(ev.playerId, p.bet);
       PK.Hud.sfx('chip');
       PK.Hud.updateNameplates(engine);
@@ -215,6 +236,7 @@ async function handleEvent(ev) {
     }
     case 'action': {
       var pl = engine.players[ev.playerId];
+      if (App.handLog) App.handLog.actions.push({ street: App.handLog.street, pid: ev.playerId, act: ev.action, amount: ev.amount || 0, to: ev.to || 0 });
       var names = { fold: PK.t('弃牌'), check: PK.t('过牌'), call: PK.t('跟注'), bet: PK.t('下注'), raise: PK.t('加注'), allin: PK.t('全下') };
       var text = names[ev.action];
       if (ev.action === 'call' || ev.action === 'bet' || ev.action === 'raise') text += ' ' + PK.fmt(ev.amount || ev.to || 0);
@@ -241,6 +263,11 @@ async function handleEvent(ev) {
       break;
     }
     case 'street': {
+      if (App.handLog) {
+        App.handLog.street = ev.street;
+        App.handLog.board = engine.board.slice();
+        App.handLog.streets.push({ street: ev.street, cards: ev.cards.slice() });
+      }
       await scene.collectBets();
       scene.setPot(engine.potTotal());
       await scene.dealCommunity(ev.cards);
@@ -298,6 +325,7 @@ async function handleEvent(ev) {
       break;
     }
     case 'showdown': {
+      if (App.handLog) App.handLog.pots = ev.pots;
       var main = ev.pots[ev.pots.length - 1];
       if (main && main.hand.length) {
         scene.highlightCards(main.hand[0].best5);
@@ -313,6 +341,7 @@ async function handleEvent(ev) {
     }
     case 'award': {
       var winner = engine.players[ev.playerId];
+      if (App.handLog) App.handLog.awards.push({ pid: ev.playerId, amount: ev.amount, uncontested: !!ev.uncontested });
       scene.setBet(ev.playerId, 0);
       await scene.awardPot(ev.playerId, ev.amount);
       scene.setPot(0);
@@ -334,6 +363,7 @@ async function handleEvent(ev) {
     }
     case 'eliminate': {
       var v = engine.players[ev.playerId];
+      if (App.handLog) App.handLog.elims.push(ev.playerId);
       PK.Hud.sfx('elim');
       scene.piggyCoins(ev.playerId, engine.cfg.startStack);
       await scene.eliminate(ev.playerId, engine.cfg.mode === 'squid');
@@ -348,6 +378,7 @@ async function handleEvent(ev) {
     }
     case 'deadline': {
       var dv = engine.players[ev.playerId];
+      if (App.handLog) App.handLog.elims.push(ev.playerId);
       PK.Hud.sfx('elim');
       PK.Hud.sfx('coin');
       scene.piggyCoins(ev.playerId, ev.amount);
@@ -382,6 +413,7 @@ async function handleEvent(ev) {
       break;
     }
     case 'handEnd': {
+      if (App.handLog) App.handLog.result = ev.result || {};
       scene.setCinematic(false);
       PK.Hud.vignette(false);
       var res = ev.result || {};
@@ -520,6 +552,7 @@ function updateLLMStatus() {
 function showMenu() {
   PK.Hud.modal(
     '<h3>' + PK.t('菜单') + '</h3><p>' + PK.t('当前进度将丢失(锦标赛无法保存)。') + '</p>' +
+    '<label class="menu-check"><input type="checkbox" id="menu-review"' + (PK.Hud.prefs.review ? ' checked' : '') + '><span>' + PK.t('每局复盘') + ' <em class="dim">(' + PK.t('每手结束后询问: 下一局或复盘') + ')</em></span></label>' +
     '<div class="modal-btns"><button class="btn primary" data-close="resume">' + PK.t('继续游戏') + '</button>' +
     '<button class="btn" data-close="help">' + PK.t('玩法说明') + '</button>' +
     '<button class="btn danger" data-close="quit">' + PK.t('放弃并回大厅') + '</button></div>'
@@ -531,6 +564,13 @@ function showMenu() {
       PK.Hud.showLobby();
     }
   });
+  var cb = document.getElementById('menu-review');
+  if (cb) cb.onchange = function () {
+    PK.Hud.prefs.review = cb.checked;
+    PK.Hud.savePrefs();
+    var lob = document.getElementById('opt-review');
+    if (lob) lob.checked = cb.checked;
+  };
 }
 
 async function showResults(quitData) {
