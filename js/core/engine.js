@@ -111,7 +111,8 @@ Engine.prototype.startHand = function () {
 
   // 级别/盲注
   if (cfg.mode !== 'cash') {
-    var lv = Math.min(Math.floor((this.handNo - 1) / cfg.tourney.handsPerLevel), LEVELS.length - 1);
+    var hpl = (cfg.tourney && cfg.tourney.handsPerLevel) || 8; /* squid 模式无 tourney 配置时用默认 */
+    var lv = Math.min(Math.floor((this.handNo - 1) / hpl), LEVELS.length - 1);
     if (lv !== this.level || this.handNo === 1) {
       this.level = lv;
       this.sb = LEVELS[lv][0]; this.bb = LEVELS[lv][1]; this.ante = LEVELS[lv][2];
