@@ -176,21 +176,24 @@ Scene2D.prototype._layoutSeat = function (pid) {
   s.dx = dx; s.dy = dy;
   var RX = this.RX, RY = this.RY, cx = this.cx, cy = this.cy;
   if (pid === 0) {
-    // 玩家自己: 头像底部偏左, 大牌紧贴头像右侧, 铭牌在头像上方
-    s.seat = { x: cx - Math.max(120, RX * 0.34), y: cy + RY * 0.92 };
+    // 玩家自己: 头像在桌沿外(底部偏左), 大牌贴头像右侧且整体在桌内, 铭牌在头像上方
+    s.seat = { x: cx - Math.max(120, RX * 0.34), y: cy + RY * 1.13 };
     s.plate = { x: s.seat.x, y: s.seat.y - 52 };
-    s.bet = { x: s.seat.x + (cx - s.seat.x) * 0.55, y: s.seat.y + (cy - s.seat.y) * 0.45 };
-    s.card = { x: s.seat.x + 106, y: s.seat.y - 4 };
+    // 牌贴头像右侧、整体在桌内; 下注筹码在牌右侧(label 投影在筹码上方 86px, 避开公共牌带)
+    s.card = { x: s.seat.x + 106, y: cy + RY * 0.7 };
+    s.bet = { x: s.seat.x + 216, y: cy + RY * 0.78 };
     // 成牌标签跟手牌水平居中(操作栏弹出时 CSS 自动上移叠牌底避让)
     if (this._made) {
       this._made.style.left = s.card.x + 'px';
       this._made.style.top = (s.card.y + 49) + 'px';
     }
   } else {
-    // 座位轨迹: 侧面内收(坐到桌边), 避开两侧 HUD 面板
-    var ex = 1.04 - 0.26 * Math.abs(dx);
-    s.seat = { x: cx + dx * RX * ex, y: cy + dy * RY * 1.06 };
-    // 手牌/下注沿「座位→桌心」插值, 跟随内收后的座位
+    // 座位轨迹: 椭圆点 + 径向法向外推 42px(盒对角支撑 ~37px + 余量), 保证头像盒完全在桌外
+    var px = RX * dx, py = RY * dy;
+    var L = Math.sqrt(px * px + py * py) || 1;
+    var gap = 42;
+    s.seat = { x: cx + px + px / L * gap, y: cy + py + py / L * gap };
+    // 手牌/下注沿「座位→桌心」插值, 牌在桌内
     s.bet = { x: s.seat.x + (cx - s.seat.x) * 0.55, y: s.seat.y + (cy - s.seat.y) * 0.55 };
     s.card = { x: s.seat.x + (cx - s.seat.x) * 0.3, y: s.seat.y + (cy - s.seat.y) * 0.3 };
     // 铭牌绑定初值: 底部/顶部座位紧贴头像上方, 中间带(侧座)紧贴头像下方; 由求解器微调
