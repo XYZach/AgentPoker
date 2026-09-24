@@ -146,6 +146,8 @@ PK.I18N.on(function () {
 
 Hud.initLobby = function (onStart) {
   var lobby = $('#lobby');
+  var gtoBtn = $('#tb-gto');
+  if (gtoBtn) gtoBtn.onclick = function () { Hud.showGTOMatrix(Hud._lastAdv || null); };
   var state = {
     mode: 'squid',
     count: 6,
@@ -420,6 +422,7 @@ Hud.initGame = function (engine, scene) {
   if (camWrap) camWrap.classList.toggle('hidden', !!scene.is2d); // 2D 模式无相机
   $('#tb-menu').onclick = function () { if (Hud.onMenu) Hud.onMenu(); };
   $('#tb-help').onclick = function () { Hud.showHelp(); };
+  $('#tb-gto').onclick = function () { Hud.showGTOMatrix(Hud._lastAdv || null); }; /* 随时可开 GTO 矩阵 */
   $('#log-toggle').onclick = function () { $('#log-panel').classList.toggle('open'); };
 
   // 预选动作(跨手保留, 游戏内随时可改)
@@ -654,6 +657,7 @@ Hud.updateGTO = function (adv) {
   var box = $('#eq-gto');
   if (!box) return;
   if (!adv) { box.className = 'hidden'; box.innerHTML = ''; return; }
+  Hud._lastAdv = adv; /* 工具栏随时打开矩阵时带上当前手牌高亮 */
   var en = PK.I18N.lang === 'en';
   var actTxt = { raise: en ? 'Raise' : '加注', fold: en ? 'Fold' : '弃牌', check: en ? 'Free check' : '免费过牌' };
   var cls = adv.act === 'raise' ? 'ok-text' : adv.act === 'fold' ? 'bad-text' : 'dim';
@@ -682,7 +686,7 @@ Hud.showGTOMatrix = function (adv) {
     '<div class="gto-sub dim">' + PK.t('简化版 · 100bb · 颜色越绿加注频率越高 · 仅覆盖翻前未加注底池') + '</div>' +
     '<div class="gto-tabs">';
   ['EP', 'MP', 'CO', 'BTN', 'SB'].forEach(function (pos) {
-    html += '<button class="gto-tab' + (adv && adv.pos === pos ? ' sel' : '') + '" data-pos="' + pos + '">' + pos + '</button>';
+    html += '<button class="gto-tab' + ((adv && adv.pos === pos) || (!adv && pos === 'BTN') ? ' sel' : '') + '" data-pos="' + pos + '">' + pos + '</button>';
   });
   html += '</div><div class="gto-grid-wrap">';
   for (var i = 0; i < 13; i++) {
