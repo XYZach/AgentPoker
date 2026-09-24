@@ -807,9 +807,15 @@ Hud.showReview = function (log) {
     if (!p || !rp.dealt) return;
     var hole = p.hole && p.hole.length >= 2 ? p.hole : null;
     var award = awardById[rp.id] || 0;
-    var net = p.stack - rp.startStack;
+    var net = (rp.endStack != null ? rp.endStack : p.stack) - rp.startStack;
+    var awEv = null;
+    for (var ai = 0; ai < log.awards.length; ai++) if (log.awards[ai].pid === rp.id) awEv = log.awards[ai];
     var res;
-    if (award > 0) res = '🏆 +' + PK.fmt(award) + (catById[rp.id] ? ' · ' + catById[rp.id] : '');
+    if (award > 0 && awEv && awEv.uncontested) {
+      /* 无人跟注: award 含自己退回的投入, 显示净赢 */
+      var netWin = award - (rp.contributed || 0);
+      res = '🏆 ' + PK.t('无人跟注') + (netWin > 0 ? ' +' + PK.fmt(netWin) : '');
+    } else if (award > 0) res = '🏆 +' + PK.fmt(award) + (catById[rp.id] ? ' · ' + catById[rp.id] : '');
     else if (catById[rp.id]) res = catById[rp.id];
     else if (log.elims.indexOf(rp.id) >= 0) res = '💀 ' + PK.t('被淘汰');
     else res = PK.t('弃牌');

@@ -160,6 +160,7 @@ var EN = {
   '手 · 要复盘吗?': ' · review this hand?',
   '下一局': 'Next Hand', '复盘本局': 'Review This Hand', '复盘': 'Hand Review',
   '底牌': 'Hole Cards', '结果': 'Result', '动作时间线': 'Action Timeline',
+  '开始游戏': 'Start Playing',
 
   '鱿鱼时钟: ': 'Squid clock: ',
   '本手结束后淘汰最短码!': 'Shortest stack busts after this hand!',
@@ -226,6 +227,7 @@ PK.I18N = {
   },
   toggle: function () { this.setLang(this.lang === 'zh' ? 'en' : 'zh'); },
   applyStatic: function () {
+    if (typeof document === 'undefined' || !document.querySelectorAll) return; // Node 环境(测试)
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       el.textContent = PK.t(el.getAttribute('data-i18n'));
     });

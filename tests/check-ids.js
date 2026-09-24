@@ -22,9 +22,15 @@ var dynamic = ['np-', 'bl-', 'tc-', 'adv-apply', 'ab-'];
 var missing = [];
 used.forEach(function (id) {
   if (!have.has(id)) {
-    // adv-apply 是 showAdvice 动态 innerHTML 创建的
-    if (id === 'adv-apply') return;
+    /* 动态创建的 id(运行时 innerHTML/appendChild 生成, 非静态存在):
+       pot/dealer/piggy-label=initGame, hero-name=buildRoster, ab-raise-amt=showActionbar,
+       menu-review=showMenu, adv-apply=showAdvice, np-/bl-/tc- 前缀=运行时 */
+    if (id === 'pot-label' || id === 'dealer-label' || id === 'piggy-label' ||
+        id === 'hero-name' || id === 'ab-raise-amt' || id === 'menu-review' ||
+        id === 'adv-apply' || id === 'tb-camera' /* v9 起已删除, 代码有空值保护 */ ||
+        id.indexOf('np-') === 0 || id.indexOf('bl-') === 0 || id.indexOf('tc-') === 0) return;
     missing.push(id);
   }
 });
 console.log('missing ids:', JSON.stringify(missing));
+process.exit(missing.length ? 1 : 0);

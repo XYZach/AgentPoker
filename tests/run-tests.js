@@ -164,7 +164,11 @@ section('side pots');
   while (eng.phase !== 'done') { if (eng.awaiting) eng.act(eng.awaiting.id, { type: 'call' }); else eng.step(); }
   const total = p.reduce((s, q) => s + q.stack, 0);
   ok(total === 3000, 'side pot chip conservation total=' + total);
-  ok(p.every(q => q.contributed === 0 || true), 'contributed reset per hand is per-hand only');
+  // 每手发牌重置: contributed/bet/hole 清零
+  ok(eng.potTotal() >= 0, 'potTotal readable after hand');
+  eng.startHand();
+  ok(eng.potTotal() === 15, 'new hand starts with only blinds in pot (got ' + eng.potTotal() + ')');
+  ok(eng.players.every(q => q.hole.length === 2), 'all dealt 2 hole cards');
 }
 // 两人局盲注与行动顺序
 section('heads-up');
@@ -247,6 +251,141 @@ section('squid deadline');
   ok(forcedFired, 'forced showdown hand fires');
   ok(forcedHandNo === 3, 'forced hand at deadline (got hand ' + forcedHandNo + ')');
   ok(eng.over, 'squid game eventually ends (' + hands + ' hands)');
+}
+
+/* ---------- 深度不变量: 每手资金对账 ---------- */
+section('per-hand accounting');
+{
+  // 每手: post 投入总额 === award 发放总额 (含边池/余数/退还, 三模式通用)
+  for (const mode of ['cash', 'tourney', 'squid']) {
+    let checked = 0, splitPots = 0, allinHands = 0;
+    const eng = new PK.Engine(mkCfg(mode, 9), PK.mulberry32(777));
+    for (let hand = 0; hand < 60 && !eng.over; hand++) {
+      const evs = [...eng.startHand()];
+      let g = 0;
+      while (eng.phase !== 'done' && g++ < 500) {
+        if (eng.awaiting) {
+          const p = eng.awaiting;
+          const legal = eng.legalActions(p);
+          const roll = engineRng(eng);
+          let d;
+          if (roll < 0.35) d = { type: 'fold' };           // 多弃牌拉长对局
+          else if (roll < 0.92) d = legal.toCall > 0 ? { type: 'call' } : { type: 'check' };
+          else {
+            const to = legal.minTo + Math.floor(engineRng(eng) * Math.max(1, (legal.maxTo - legal.minTo) / 3));
+            d = { type: legal.isRaise ? 'raise' : 'bet', amount: to };
+          }
+          evs.push(...eng.act(p.id, d));
+        } else evs.push(...eng.step());
+      }
+      if (g >= 500) { ok(false, mode + ' hand ' + (hand + 1) + ' did not terminate'); break; }
+      const posted = evs.filter(e => e.type === 'post').reduce((s, e) => s + e.amount, 0);
+      const awarded = evs.filter(e => e.type === 'award').reduce((s, e) => s + e.amount, 0);
+      if (posted !== awarded) ok(false, mode + ' hand ' + (hand + 1) + ' posted ' + posted + ' != awarded ' + awarded);
+      if (evs.some(e => e.type === 'runoutReveal')) allinHands++;
+      if (evs.some(e => e.type === 'showdown' && e.pots.length > 1)) splitPots++;
+      if (evs.some(e => e.type === 'showdown')) {
+        const sd = evs.find(e => e.type === 'showdown');
+        sd.pots.forEach(pot => ok(pot.amount > 0 && pot.winners.length >= 1, mode + ' pot valid'));
+      }
+      // handEnd 后无待行动者
+      if (eng.phase === 'done' && eng.awaiting !== null) ok(false, mode + ' awaiting not null after handEnd');
+      checked++;
+      if (mode === 'cash') eng.players.forEach(p => { if (p.sittingOut) eng.rebuy(p.id); });
+    }
+    ok(checked >= 10, mode + ' accounting checked enough hands (' + checked + ')');
+    console.log('  ' + mode + ': ' + checked + ' hands balanced, ' + splitPots + ' side-pot hands, ' + allinHands + ' allin runouts');
+  }
+  function engineRng(eng) { return eng.rng(); }
+}
+// squid 全局守恒: sum(stack) + deadline 移除额 = 初始 + bounty 发放额
+{
+  const cfg = mkCfg('squid', 5);
+  cfg.squid.deadlineHands = 4;
+  const eng = new PK.Engine(cfg, PK.mulberry32(31337));
+  let deadlineRemoved = 0, bountyPaid = 0;
+  const init = 5 * 1000;
+  let hands = 0;
+  while (!eng.over && hands < 300) {
+    const evs = [...eng.startHand()];
+    let g = 0;
+    while (eng.phase !== 'done' && g++ < 500) {
+      if (eng.awaiting) {
+        const p = eng.awaiting;
+        const legal = eng.legalActions(p);
+        const roll = eng.rng();
+        let d;
+        if (roll < 0.3) d = { type: 'fold' };
+        else if (roll < 0.8) d = legal.toCall > 0 ? { type: 'call' } : { type: 'check' };
+        else { const to = legal.minTo + Math.floor(eng.rng() * Math.max(1, (legal.maxTo - legal.minTo) / 2)); d = { type: legal.isRaise ? 'raise' : 'bet', amount: to }; }
+        evs.push(...eng.act(p.id, d));
+      } else evs.push(...eng.step());
+    }
+    evs.forEach(e => {
+      if (e.type === 'deadline') deadlineRemoved += e.amount;
+      if (e.type === 'bounty') bountyPaid += e.amount;
+    });
+    hands++;
+  }
+  const sum = eng.players.reduce((s, p) => s + p.stack, 0);
+  ok(sum + deadlineRemoved === init + bountyPaid, 'squid conservation: sum ' + sum + ' + removed ' + deadlineRemoved + ' == init ' + init + ' + bounty ' + bountyPaid);
+  ok(eng.over, 'squid ends (' + hands + ' hands)');
+}
+// tourney 全局守恒(无 bounty 凭空发放): sum(alive stack) 恒 = n*startStack
+{
+  const eng = new PK.Engine(mkCfg('tourney', 4), PK.mulberry32(999));
+  let hands = 0;
+  while (!eng.over && hands < 300) {
+    eng.startHand(); hands++;
+    let g = 0;
+    while (eng.phase !== 'done' && g++ < 500) {
+      if (eng.awaiting) eng.act(eng.awaiting.id, eng.rng() < 0.5 ? { type: 'call' } : { type: 'fold' });
+      else eng.step();
+    }
+    const s = eng.alive().reduce((a, p) => a + p.stack, 0);
+    if (s !== 4000) { ok(false, 'tourney conservation broken at hand ' + hands + ': ' + s); break; }
+  }
+  ok(eng.over, 'tourney ends with conservation intact (' + hands + ' hands)');
+}
+
+/* ---------- 不足额全下不重开行动 ---------- */
+section('short allin');
+{
+  const eng = new PK.Engine(mkCfg('cash', 3), PK.mulberry32(5));
+  eng.startHand();
+  const p = eng.players;
+  eng.act(p[1].id, { type: 'call' });   // SB call 5
+  eng.act(p[2].id, { type: 'check' });
+  eng.step();                            // flop
+  eng.act(p[0].id, { type: 'bet', amount: 100 });
+  eng.act(p[1].id, { type: 'raise', amount: 300 }); // minRaise 已到 200
+  // P2 剩 350: 全下到 360, 加注量 60 < minRaise 200 —— 不应重置 P0/P1 行动权
+  p[2].stack = 350;
+  eng.act(p[2].id, { type: 'allin' });
+  ok(eng.currentBet === 350, 'short allin sets currentBet (got ' + eng.currentBet + ')');
+  ok(eng.awaiting === p[0], 'action returns to first bettor (not reopened)');
+  eng.act(p[0].id, { type: 'call' });
+  eng.act(p[1].id, { type: 'call' });
+  // P1: SB5+call5+flop300+call50=360, P2: BB10+allin350=360, P0: flop100+call250=350
+  const posted = p.reduce((s, q) => s + q.contributed, 0);
+  ok(posted === 1070, 'three-way pot (got ' + posted + ')');
+}
+
+/* ---------- 重买 ---------- */
+section('rebuy');
+{
+  const eng = new PK.Engine(mkCfg('cash', 3), PK.mulberry32(13));
+  eng.startHand();
+  eng.players[0].stack = 0;
+  eng.players[0].allIn = true;
+  eng._finishHand({ pots: [] }); // 触发 busted 判定 -> sittingOut (需 dealt=true)
+  ok(eng.players[0].sittingOut === true, 'busted player sits out');
+  const buyinBefore = eng.players[0].totalBuyin;
+  eng.rebuy(0);
+  ok(eng.players[0].stack === 1000, 'rebuy restores stack');
+  ok(eng.players[0].totalBuyin === buyinBefore + 1000, 'rebuy adds to totalBuyin');
+  eng.startHand();
+  ok(eng.players[0].dealt === true, 'rebuys back into next hand');
 }
 
 console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');

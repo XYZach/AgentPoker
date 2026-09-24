@@ -185,7 +185,8 @@ async function handleEvent(ev) {
         street: 0, board: [], streets: [], actions: [], awards: [], pots: [], elims: [],
         result: null,
         players: engine.players.map(function (p) {
-          return { id: p.id, name: p.name, isHero: !!p.isHuman, styleKey: p.styleKey, startStack: p.stack, dealt: p.dealt };
+          /* p.startStack 是引擎在手开始(盲注前)设置的; 此刻 p.stack 已被同步扣过盲注(事件数组滞后播放), 不能用 */
+          return { id: p.id, name: p.name, isHero: !!p.isHuman, styleKey: p.styleKey, startStack: p.startStack, dealt: p.dealt };
         })
       };
       scene.clearHandVisuals();
@@ -396,9 +397,11 @@ async function handleEvent(ev) {
     }
     case 'levelUp': {
       PK.Hud.sfx('level');
-      PK.Hud.banner(PK.t('盲注升级'), PK.I18N.lang === 'en'
+      var lvSub = PK.I18N.lang === 'en'
         ? 'Level ' + ev.level + ' · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (ante ' + ev.ante + ')' : '')
-        : '第 ' + ev.level + ' 级 · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (' + PK.t('前注') + ' ' + ev.ante + ')' : ''), 'info', 2000);
+        : '第 ' + ev.level + ' 级 · ' + ev.sb + '/' + ev.bb + (ev.ante ? ' (' + PK.t('前注') + ' ' + ev.ante + ')' : '');
+      PK.Hud.banner(PK.t('盲注升级'), lvSub, 'info', 2000);
+      PK.Hud.log('<b>⬆ ' + PK.t('盲注升级') + ': ' + lvSub + '</b>', 'sys');
       PK.Hud.setTopbar({ mode: engine.cfg.mode, handNo: engine.handNo, level: ev.level, sb: ev.sb, bb: ev.bb, ante: ev.ante, handsUntilDeadline: engine.handsUntilDeadline() });
       break;
     }
@@ -413,7 +416,14 @@ async function handleEvent(ev) {
       break;
     }
     case 'handEnd': {
-      if (App.handLog) App.handLog.result = ev.result || {};
+      if (App.handLog) {
+        App.handLog.result = ev.result || {};
+        /* 终局快照: 盈亏须在手结束后立即记录(现金局重买会改 stack, 渲染时再算就错) */
+        App.handLog.players.forEach(function (rp) {
+          var p = engine.players[rp.id];
+          if (p) { rp.endStack = p.stack; rp.folded = p.folded; rp.contributed = p.contributed; }
+        });
+      }
       scene.setCinematic(false);
       PK.Hud.vignette(false);
       var res = ev.result || {};

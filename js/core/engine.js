@@ -97,6 +97,18 @@ Engine.prototype.startHand = function () {
   this.handNo++;
   this.lastHandResult = null;
 
+  // 防御: 可玩人数不足 2(如现金局众人离场/幽灵状态), 直接结束场次
+  if (this.eligibleCount() < 2) {
+    this.awaiting = null;
+    this.phase = 'done';
+    if (!this.over) {
+      this.over = true;
+      var standings = this.players.slice().sort(function (a, b) { return b.stack - a.stack; });
+      this.emit({ type: 'gameOver', mode: cfg.mode, standings: standings.map(function (q) { return { playerId: q.id, name: q.name, place: 1, stack: q.stack, prize: 0, bounty: q.bounty, out: q.out }; }), prizes: {}, pool: 0 });
+    }
+    return this.events;
+  }
+
   // 级别/盲注
   if (cfg.mode !== 'cash') {
     var lv = Math.min(Math.floor((this.handNo - 1) / cfg.tourney.handsPerLevel), LEVELS.length - 1);
@@ -517,6 +529,7 @@ Engine.prototype._finishHand = function (info) {
     this.emit({ type: 'gameOver', mode: cfg.mode, standings: standings.map(function (p) { return { playerId: p.id, name: p.name, place: p.place || i0(p), stack: p.stack, prize: prizes[p.id] || 0, bounty: p.bounty, out: p.out }; }), prizes: prizes, pool: pool });
     function i0(p) { return 99; }
   }
+  this.awaiting = null; // 手结束, 清掉待行动者(否则残留在 done 阶段)
   this.phase = 'done';
 };
 

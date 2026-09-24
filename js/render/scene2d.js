@@ -110,8 +110,8 @@ Scene2D.prototype._layout = function () {
   this._dealerAv.style.top = (cy - RY * 0.72) + 'px';
   this._extra.dealer = { position: { x: cx, y: cy - RY * 0.72 - 27, z: 0 } };
 
-  this._pot = { x: cx, y: cy - RY * 0.42 };
-  this._extra.pot = { position: { x: this._pot.x, y: this._pot.y - 44, z: 0 } };
+  this._pot = { x: cx, y: cy - RY * 0.36 };
+  this._extra.pot = { position: { x: this._pot.x, y: this._pot.y - 40, z: 0 } };
 
   if (this._piggy) {
     this._piggy.style.left = (cx - RX * 0.6) + 'px';
@@ -275,7 +275,7 @@ Scene2D.prototype._resolveOverlaps = function () {
     return { x: x + dirs[best.d].x * step * best.n, y: y + dirs[best.d].y * step * best.n };
   }
   var round;
-  for (round = 0; round < 2; round++) {
+  for (round = 0; round < 3; round++) {
     pids.forEach(function (pid) {
       if (pid === 0) return;
       var s = self._seats[pid];
@@ -296,17 +296,31 @@ Scene2D.prototype._resolveOverlaps = function () {
         return px > 56 && px < W - 56 && py > 118 && py < H - 108;
       }, true);
       if (sol) { s.card.x = sol.x; s.card.y = sol.y; }
-      // 2) 铭牌: 六方向求解(桌心/外/切向×2/水平×2), 先严格避面板, 失败再放宽
+      // 2) 铭牌: 六方向求解(桌心/外/切向×2/水平×2), 先严格避面板, 失败再放宽(仍避开其他铭牌)
       own = seatRects(pid, s); // 手牌已移动, 重建自身矩形
-      var pobs = obstaclesFor(pid).concat([own.av, own.cards, own.bet]);
+      var pobs = obstaclesFor(pid).concat([own.av, own.cards, own.bet,
+        { l: cx - 40, t: cy - RY * 0.72 - 40, r: cx + 40, b: cy - RY * 0.72 + 40 }, // 荷官
+        { l: cx - 95, t: cy - RY * 0.36 - 66, r: cx + 95, b: cy - RY * 0.36 + 6 }   // 彩池标签
+      ]);
       var pdirs = [
         { x: -s.dx, y: -s.dy }, { x: s.dx, y: s.dy },
         { x: -s.dy, y: s.dx }, { x: s.dy, y: -s.dx },
-        { x: 1, y: 0 }, { x: -1, y: 0 }
+        { x: 1, y: 0 }, { x: -1, y: 0 },
+        { x: 0.7, y: 0.7 }, { x: -0.7, y: 0.7 }, { x: 0.7, y: -0.7 }, { x: -0.7, y: -0.7 }
       ];
       var clampP = function (px, py) { return px > 74 && px < W - 74 && py > 142 && py < H - 58; };
-      sol = solve(s.plate.x, s.plate.y, RECTS.plateW, RECTS.plateH, pobs, false, pdirs, 11, 18, clampP);
-      if (!sol) sol = solve(s.plate.x, s.plate.y, RECTS.plateW, RECTS.plateH, [own.av, own.cards], true, pdirs, 11, 18, clampP);
+      var otherPlates = [];
+      pids.forEach(function (q) { if (q !== pid) otherPlates.push(seatRects(q, self._seats[q]).plate); });
+      /* 放宽轮: 仍须避开他人铭牌与头像(压头像会遮挡座位标识) */
+      var relaxedObs = [own.av, own.cards, own.bet].concat(otherPlates);
+      pids.forEach(function (q) { if (q !== pid) relaxedObs.push(seatRects(q, self._seats[q]).av); });
+      sol = solve(s.plate.x, s.plate.y, RECTS.plateW, RECTS.plateH, pobs, false, pdirs, 7, 42, clampP);
+      if (!sol) sol = solve(s.plate.x, s.plate.y, RECTS.plateW, RECTS.plateH, relaxedObs, true, pdirs, 7, 42, clampP);
+      if (!sol) {
+        /* 顶部座位上方空间不足时, 反转锚定方向(above<->below)再试 */
+        var flippedY = (s.plate.y < s.seat.y) ? s.seat.y + 26 + RECTS.plateH + 4 : s.seat.y - 34;
+        sol = solve(s.plate.x, flippedY, RECTS.plateW, RECTS.plateH, relaxedObs, true, pdirs, 7, 42, clampP);
+      }
       if (sol) { s.plate.x = sol.x; s.plate.y = sol.y; }
       // 屏幕钳制
       s.plate.x = Math.max(74, Math.min(W - 74, s.plate.x));
