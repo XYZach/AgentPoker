@@ -506,6 +506,7 @@ function scheduleEquity() {
   var engine = App.engine;
   var hero = engine.players[App.heroId];
   updateTrackerNow();
+  PK.Hud.updateGTO(PK.GTO.advice(engine, App.heroId));
   if (App._eqHandle) App._eqHandle.cancel();
   if (!hero.dealt || hero.folded || !hero.hole || hero.hole.length < 2) {
     PK.Hud.updateEquity(null);

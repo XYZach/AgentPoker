@@ -28,6 +28,7 @@ used.forEach(function (id) {
     if (id === 'pot-label' || id === 'dealer-label' || id === 'piggy-label' ||
         id === 'hero-name' || id === 'ab-raise-amt' || id === 'menu-review' ||
         id === 'adv-apply' || id === 'rv-copy' || id === 'rv-coach-btn' || id === 'rv-coach' ||
+        id === 'eq-gto-link' /* v14: GTO 范围行内的矩阵链接, updateGTO innerHTML 生成 */ ||
         id === 'tb-camera' /* v9 起已删除, 代码有空值保护 */ ||
         id.indexOf('np-') === 0 || id.indexOf('bl-') === 0 || id.indexOf('tc-') === 0) return;
     missing.push(id);

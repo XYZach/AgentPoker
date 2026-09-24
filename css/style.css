@@ -279,6 +279,25 @@ body[data-mode="squid"] .panel-title { color: var(--teal); }
 .ok-text { color: var(--green); font-weight: 700; }
 .bad-text { color: var(--red); font-weight: 700; }
 
+/* GTO 翻前范围表 */
+#eq-gto { margin-top: 6px; font-size: 11.5px; color: var(--dim); line-height: 1.7; }
+#eq-gto.hidden { display: none; }
+#eq-gto b { font-variant-numeric: tabular-nums; }
+.eq-gto-tag { display: inline-block; background: rgba(245, 185, 66, 0.14); color: var(--gold); border-radius: 4px; padding: 0 5px; font-size: 9.5px; font-weight: 800; letter-spacing: 1px; margin-right: 2px; }
+#eq-gto a { color: var(--gold); text-decoration: underline; cursor: pointer; }
+.modal-gto { max-width: 560px; }
+.gto-sub { font-size: 11.5px; margin-bottom: 10px; }
+.gto-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.gto-tab { background: #1a212c; border: 1px solid var(--panel-border); color: var(--dim); border-radius: 7px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 700; }
+.gto-tab.sel { background: rgba(245, 185, 66, 0.16); border-color: var(--gold); color: var(--gold); }
+.gto-grid-wrap { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; }
+.gto-cell { font-size: 8.5px; font-weight: 700; text-align: center; padding: 5px 0; border-radius: 3px; font-family: Consolas, monospace; color: rgba(255, 255, 255, 0.75); }
+.gto-cell.raise { background: rgba(46, 204, 113, 0.55); color: #fff; }
+.gto-cell.fold { background: #232a33; color: rgba(255, 255, 255, 0.28); }
+.gto-cell.cur { outline: 2px solid var(--gold); outline-offset: -1px; color: #fff; }
+.gto-legend { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 11px; }
+.gto-legend .gto-cell { padding: 3px 10px; font-size: 10.5px; }
+
 /* LLM 状态 + 建议卡 */
 #llm-status { margin-top: 8px; font-size: 10.5px; padding: 4px 8px; border-radius: 7px; background: #171c25; color: var(--dim); }
 #llm-status.ok { color: var(--green); }

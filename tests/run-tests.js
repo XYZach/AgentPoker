@@ -14,7 +14,7 @@ const ctx = {
 };
 ctx.global = ctx; // 让模块里的 global.PK 挂到同一对象
 vm.createContext(ctx);
-for (const f of ['js/core/cards.js', 'js/core/equity.js', 'js/core/engine.js', 'js/ai/aiplayer.js']) {
+for (const f of ['js/core/cards.js', 'js/core/equity.js', 'js/core/engine.js', 'js/core/gto.js', 'js/ai/aiplayer.js']) {
   vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
 }
 const PK = ctx.PK;
@@ -386,6 +386,83 @@ section('rebuy');
   ok(eng.players[0].totalBuyin === buyinBefore + 1000, 'rebuy adds to totalBuyin');
   eng.startHand();
   ok(eng.players[0].dealt === true, 'rebuys back into next hand');
+}
+
+/* ---------- GTO 翻前范围表 ---------- */
+section('gto');
+{
+  ok(PK.GTO.handClass([C(14, 0), C(13, 1)]) === 'AKo', 'handClass AKo');
+  ok(PK.GTO.handClass([C(13, 0), C(13, 2)]) === 'KK', 'handClass KK');
+  ok(PK.GTO.handClass([C(12, 1), C(11, 1)]) === 'QJs', 'handClass QJs');
+  ok(PK.GTO.handClass([C(5, 0), C(2, 3)]) === '52o', 'handClass 52o');
+  ok(PK.GTO.handClass([C(14, 2), C(5, 2)]) === 'A5s', 'handClass A5s');
+
+  const tbl = PK.GTO.tables();
+  ok(Object.keys(tbl.EP).length === 26, 'EP range = 26 classes');
+  ok(Object.keys(tbl.MP).length === 40, 'MP range = 40 classes');
+  ok(Object.keys(tbl.CO).length === 49, 'CO range = 49 classes');
+  ok(Object.keys(tbl.BTN).length === 75, 'BTN range = 75 classes');
+  ok(Object.keys(tbl.SB).length === 72, 'SB range = 72 classes');
+  ok(tbl.BTN['K2s'] === true && tbl.EP['K2s'] === undefined, 'K2s: BTN raise, EP fold');
+  ok(tbl.EP['AA'] === true && tbl.SB['72o'] === undefined, 'AA always in range, 72o never');
+  ok(tbl.CO['A2s'] === true && tbl.MP['A2s'] === undefined, 'A2s: CO raise, MP fold');
+  ok(tbl.MP['ATo'] === true && tbl.MP['A9o'] === undefined, 'ATo in MP, A9o not');
+  ok(tbl.SB['T9o'] === true && tbl.BTN['T9o'] === undefined && tbl.BTN['T9s'] === true, 'T9o in SB only; BTN has T9s');
+  // '+' 展开边界: 'K9s+' = K9s..KQs (不含 KK)
+  const k9 = PK.GTO.parseRange('K9s+');
+  ok(k9['K9s'] && k9['KTs'] && k9['KJs'] && k9['KQs'] && !k9['KK'], 'K9s+ expands to KQs, no pair');
+  const p55 = PK.GTO.parseRange('55+');
+  ok(p55['55'] && p55['AA'] && !p55['44'], '55+ expands to AA');
+
+  // mock engine: 6 人桌, dealerIdx=3 -> 0=EP 1=MP 2=CO 3=BTN 4=SB 5=BB
+  function mockEng(street, currentBet, heroHole) {
+    const players = [];
+    for (let i = 0; i < 6; i++) {
+      players.push({ id: i, dealt: true, folded: false, out: false, hole: i === 0 ? heroHole : [C(2, 0), C(3, 1)], bet: 0, stack: 1000, hasActed: false });
+    }
+    return {
+      street: street, currentBet: currentBet, bb: 10, dealerIdx: 3, players: players,
+      legalActions: function (p) {
+        const toCall = Math.max(0, this.currentBet - p.bet);
+        return { toCall: toCall, canCheck: toCall <= 0, canCall: toCall > 0, canBet: toCall <= 0, canRaise: toCall > 0, potOdds: 0, potTotal: 0, isRaise: this.currentBet > 0 };
+      }
+    };
+  }
+  const adv = (street, cb, hole, dealerIdx) => {
+    const e = mockEng(street, cb, hole);
+    if (dealerIdx !== undefined) e.dealerIdx = dealerIdx;
+    return PK.GTO.advice(e, 0);
+  };
+  ok(adv(0, 10, [C(14, 0), C(13, 0)]).act === 'raise' && adv(0, 10, [C(14, 0), C(13, 0)]).pos === 'EP', 'AKs EP -> raise');
+  ok(adv(0, 10, [C(5, 0), C(4, 1)]).act === 'fold', '54o EP -> fold');
+  ok(adv(0, 10, [C(2, 2), C(2, 3)]).act === 'fold', '22 not in EP range (starts 55)');
+  ok(adv(0, 10, [C(2, 2), C(2, 3)], 2).act === 'raise', '22 in MP range');
+  ok(adv(0, 10, [C(2, 2), C(2, 3)], 0) !== null && adv(0, 10, [C(2, 2), C(2, 3)], 0).pos === 'BTN' && adv(0, 10, [C(2, 2), C(2, 3)], 0).act === 'raise', 'dealerIdx=0 hero=BTN raises 22');
+  ok(adv(0, 10, [C(7, 0), C(2, 1)]).act === 'fold', '72o EP -> fold');
+  ok(adv(1, 0, [C(14, 0), C(13, 0)]) === null, 'postflop -> null');
+  ok(adv(0, 30, [C(14, 0), C(13, 0)]) === null, 'facing raise -> null');
+  ok(adv(0, 10, [C(14, 0), C(13, 0)]).cls === 'AKs', 'hand class carried in advice');
+  // dealerIdx=4 -> hero(0)=BB -> 免费过牌
+  const e4 = mockEng(0, 10, [C(14, 0), C(13, 0)]);
+  e4.dealerIdx = 4;
+  const b1 = PK.GTO.advice(e4, 0);
+  ok(b1.pos === 'BB' && b1.act === 'check', 'BB unopened -> free check');
+  // 单挑: dealerIdx=0 -> 0=BTN(SB) 1=BB
+  const hu = mockEng(0, 10, [C(14, 0), C(13, 0)]);
+  hu.players = [hu.players[0], hu.players[1]];
+  hu.dealerIdx = 0;
+  const h1 = PK.GTO.advice(hu, 0);
+  ok(h1.pos === 'BTN' && h1.act === 'raise', 'HU dealer -> BTN chart raise');
+  const h2 = PK.GTO.advice(hu, 1);
+  ok(h2.pos === 'BB' && h2.act === 'check', 'HU BB -> check');
+  // 3 人桌: dealerIdx=2 -> 2=BTN 0=SB 1=BB
+  const t3 = mockEng(0, 10, [C(14, 0), C(13, 0)]);
+  t3.players = [t3.players[0], t3.players[1], t3.players[2]];
+  t3.dealerIdx = 2;
+  const s1 = PK.GTO.advice(t3, 0);
+  ok(s1.pos === 'SB' && s1.act === 'raise', '3max dealer+1 = SB uses SB chart');
+  const s2 = PK.GTO.advice(t3, 1);
+  ok(s2.pos === 'BB' && s2.act === 'check', '3max dealer+2 = BB check');
 }
 
 console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');

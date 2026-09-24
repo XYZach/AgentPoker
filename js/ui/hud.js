@@ -605,6 +605,64 @@ Hud.updateEquity = function (res, ctx) {
   else $('#eq-made').textContent = '';
 };
 
+/* ================= GTO 翻前范围表 ================= */
+Hud.updateGTO = function (adv) {
+  var box = $('#eq-gto');
+  if (!box) return;
+  if (!adv) { box.className = 'hidden'; box.innerHTML = ''; return; }
+  var en = PK.I18N.lang === 'en';
+  var actTxt = { raise: en ? 'Raise' : '加注', fold: en ? 'Fold' : '弃牌', check: en ? 'Free check' : '免费过牌' };
+  var cls = adv.act === 'raise' ? 'ok-text' : adv.act === 'fold' ? 'bad-text' : 'dim';
+  box.innerHTML = '<span class="eq-gto-tag">GTO</span> <b class="' + cls + '">' + actTxt[adv.act] +
+    '</b> <b>' + esc(adv.cls) + '</b> <span class="dim">· ' + esc(adv.pos) +
+    ' · <a href="javascript:void(0)" id="eq-gto-link">' + PK.t('矩阵') + '</a></span>';
+  box.classList.remove('hidden');
+  var link = document.getElementById('eq-gto-link');
+  if (link) link.onclick = function () { Hud.showGTOMatrix(adv); };
+};
+
+Hud.showGTOMatrix = function (adv) {
+  var RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+  var tables = PK.GTO.tables();
+  var html = '<h3>' + PK.t('GTO 翻前开牌范围') + '</h3>' +
+    '<div class="gto-sub dim">' + PK.t('简化版 · 100bb · 仅覆盖翻前未加注底池(面对加注/翻后不适用, 用胜率+赔率)') + '</div>' +
+    '<div class="gto-tabs">';
+  ['EP', 'MP', 'CO', 'BTN', 'SB'].forEach(function (pos) {
+    html += '<button class="gto-tab' + (adv && adv.pos === pos ? ' sel' : '') + '" data-pos="' + pos + '">' + pos + '</button>';
+  });
+  html += '</div><div class="gto-grid-wrap">';
+  for (var i = 0; i < 13; i++) {
+    for (var j = 0; j < 13; j++) {
+      var label = i === j ? RANKS[i] + RANKS[i] : i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
+      var act = tables[adv && tables[adv.pos] ? adv.pos : 'BTN'][label] ? 'raise' : 'fold';
+      var cur = adv && adv.cls === label ? ' cur' : '';
+      html += '<div class="gto-cell ' + act + cur + '">' + label + '</div>';
+    }
+  }
+  html += '</div><div class="gto-legend">' +
+    '<span class="gto-cell raise">' + PK.t('加注') + '</span>' +
+    '<span class="gto-cell fold">' + PK.t('弃牌') + '</span>' +
+    (adv ? '<span class="gto-cell cur">' + PK.t('当前手牌') + ' ' + adv.cls + '</span>' : '') +
+    '</div><div class="modal-btns"><button class="btn primary" data-close="ok">' + PK.t('知道了') + '</button></div>';
+  /* Hud.modal 返回的是 Promise; 事件绑定要挂在真实弹窗节点上 */
+  var m = this.modal(html, { cls: 'modal-gto' });
+  var box = document.querySelector('.modal-gto');
+  $$('.gto-tab', box).forEach(function (btn) {
+    btn.onclick = function () {
+      var pos = btn.dataset.pos;
+      $$('.gto-tab', box).forEach(function (b) { b.classList.toggle('sel', b === btn); });
+      $$('.gto-grid-wrap .gto-cell', box).forEach(function (cell, k) {
+        var i = Math.floor(k / 13), j = k % 13;
+        var label = i === j ? RANKS[i] + RANKS[i] : i < j ? RANKS[i] + RANKS[j] + 's' : RANKS[j] + RANKS[i] + 'o';
+        cell.classList.toggle('raise', !!tables[pos][label]);
+        cell.classList.toggle('fold', !tables[pos][label]);
+        cell.classList.toggle('cur', !!adv && adv.cls === label);
+      });
+    };
+  });
+  return m;
+};
+
 /* runout 全下概率条 */
 Hud.showRunoutBars = function (entries) {
   var box = $('#runout-bars');
@@ -983,6 +1041,7 @@ Hud.showHelp = function () {
     '<p>' + PK.t('<b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。') + '</p>' +
     '<p>' + PK.t('<b>预选动作</b>(操作栏上方):勾选「自动过牌/跟注」后轮到你时自动过牌(无人下注)或跟注(面对下注); 勾选「自动弃牌」则自动弃牌。设置跨手保留, 随时可取消, 快进多手时省大量点击。') + '</p>' +
     '<p>' + PK.t('<b>复盘</b>(开启"每局复盘"后):时间线里你的每个决策点都标注当时的胜率与底池赔率(✓/✗ = 赔率角度是否合理); 可一键「复制牌谱」发到群里讨论; 配置大模型后可让「AI 教练」点评整手牌。对手铭牌显示本局实时 VPIP/PFR/摊牌数(3 手起)。') + '</p>' +
+    '<p>' + PK.t('<b>GTO 范围表</b>(右栏, 翻前):轮到你且底池未加注时, 按你的位置显示简化 GTO 开牌建议(加注/弃牌/免费过牌), 点「矩阵」查看整张 13×13 起手牌范围表; 翻后与面对加注不适用, 继续用胜率+赔率。') + '</p>' +
     '<p>' + PK.t('<b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。') + '</p>' +
     '<p class="dim">' + PK.t('公平性: AI 与建议只用公开信息+自身手牌, 绝不偷看牌堆。') + '</p>' +
     '</div><div class="modal-btns"><button class="btn primary" data-close="ok">' + PK.t('开始游戏') + '</button></div>';

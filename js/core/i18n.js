@@ -210,7 +210,15 @@ var EN = {
   '<b>复盘</b>(开启"每局复盘"后):时间线里你的每个决策点都标注当时的胜率与底池赔率(✓/✗ = 赔率角度是否合理); 可一键「复制牌谱」发到群里讨论; 配置大模型后可让「AI 教练」点评整手牌。对手铭牌显示本局实时 VPIP/PFR/摊牌数(3 手起)。':
     '<b>Review</b> (with "Hand Review" on): every decision you made is annotated with the equity and pot odds at that moment (✓/✗ = +EV or -EV by pot odds); one click copies the hand history for group chat discussion; with an LLM configured, the AI Coach analyzes the whole hand. Opponent nameplates show live VPIP/PFR/showdown stats (after 3 hands).',
   '<b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。':
-    '<b>Hotkeys</b>: F fold · C check/call · R raise (slider) · Enter confirm raise · A all-in · D AI advice.'
+    '<b>Hotkeys</b>: F fold · C check/call · R raise (slider) · Enter confirm raise · A all-in · D AI advice.',
+  '矩阵': 'Matrix',
+  '当前手牌': 'Your hand',
+  '知道了': 'Got it',
+  'GTO 翻前开牌范围': 'GTO Preflop Open Ranges',
+  '简化版 · 100bb · 仅覆盖翻前未加注底池(面对加注/翻后不适用, 用胜率+赔率)':
+    'Simplified · 100bb · covers unopened preflop pots only (facing a raise or postflop: use equity + pot odds).',
+  '<b>GTO 范围表</b>(右栏, 翻前):轮到你且底池未加注时, 按你的位置显示简化 GTO 开牌建议(加注/弃牌/免费过牌), 点「矩阵」查看整张 13×13 起手牌范围表; 翻后与面对加注不适用, 继续用胜率+赔率。':
+    '<b>GTO range chart</b> (right panel, preflop): when it is your turn and nobody has raised, shows a simplified GTO open recommendation (raise/fold/free check) for your position; click "Matrix" for the full 13×13 range grid. Not applicable postflop or facing a raise — use equity + pot odds then.'
 };
 
 /* AI 英文名池(与中文名池等长) */
