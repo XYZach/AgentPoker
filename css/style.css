@@ -143,6 +143,7 @@ body[data-mode="squid"] .np-stack { color: var(--teal); }
 .np-badges { display: flex; justify-content: center; gap: 4px; min-height: 16px; }
 .bd { font-size: 9.5px; padding: 0 5px; border-radius: 6px; background: #2a3242; color: #c7d2e6; }
 .bd-d { background: #fff; color: #222; font-weight: 800; }
+.bd-blind { background: #2f6df6; color: #fff; font-weight: 700; }
 .bd-b { background: rgba(255, 45, 120, 0.2); color: var(--pink); }
 .bd-r { background: #2a3242; }
 .np-status { min-height: 15px; font-size: 10.5px; }

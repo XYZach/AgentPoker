@@ -61,7 +61,7 @@ Scene2D.prototype._buildStatic = function () {
   this._felt = el('div', 't2d-felt', r);
   this._line = el('div', 't2d-line', r);
   this._logo = el('div', 't2d-logo', r);
-  this._logo.textContent = this.mode === 'squid' ? '◐ SQUID HOLD\'EM' : '♠ TEXAS HOLD\'EM ♠';
+  this._logo.textContent = this.mode === 'squid' ? 'SQUID HOLD\'EM' : 'NO LIMIT HOLD\'EM';
   // 牌堆
   this._deckPile = el('div', 't2d-deck', r);
   for (var i = 0; i < 3; i++) el('div', 't2d-deckcard', this._deckPile);
@@ -142,10 +142,10 @@ Scene2D.prototype._seatAngle = function (i, n) {
   var m = n - 1;
   var right = Math.ceil(m / 2), left = m - right;
   var idx = i - 1;
-  // 紧凑模式(人多)弧段上移, 让最近的座位也离玩家足够远
+  // 顺时针行动: 先左弧(348°→200°)再右弧(160°→12°)
   var a0 = this._compact ? 25 : 12, a1 = this._compact ? 155 : 160;
-  if (idx < right) return this._arcAngle(a0, a1, (idx + 0.5) / right);
-  return this._arcAngle(360 - a1, 360 - a0, ((idx - right) + 0.5) / left);
+  if (idx < left) return this._arcAngle(360 - a0, 360 - a1, (idx + 0.5) / left);
+  return this._arcAngle(a1, a0, ((idx - left) + 0.5) / right);
 };
 
 /* 椭圆弧长均匀采样: t∈[0,1] 映射到 [deg0,deg1] 内弧长等分点(侧面角度间隔自动放大) */
@@ -173,11 +173,11 @@ Scene2D.prototype._layoutSeat = function (pid) {
   s.dx = dx; s.dy = dy;
   var RX = this.RX, RY = this.RY, cx = this.cx, cy = this.cy;
   if (pid === 0) {
-    // 玩家自己: 头像底部偏左, 手牌在其右侧(桌布下缘正中), 铭牌在头像上方
+    // 玩家自己: 头像底部偏左, 大牌紧贴头像右侧, 铭牌在头像上方
     s.seat = { x: cx - Math.max(120, RX * 0.34), y: cy + RY * 0.92 };
     s.plate = { x: s.seat.x, y: s.seat.y - 52 };
-    s.bet = { x: cx - RX * 0.12, y: cy + RY * 0.5 };
-    s.card = { x: cx + Math.max(70, RX * 0.18), y: cy + RY * 0.9 };
+    s.bet = { x: s.seat.x + (cx - s.seat.x) * 0.55, y: s.seat.y + (cy - s.seat.y) * 0.45 };
+    s.card = { x: s.seat.x + 106, y: s.seat.y - 4 };
   } else {
     // 座位轨迹: 侧面内收(坐到桌边), 避开两侧 HUD 面板
     var ex = 1.04 - 0.26 * Math.abs(dx);
@@ -185,11 +185,11 @@ Scene2D.prototype._layoutSeat = function (pid) {
     // 手牌/下注沿「座位→桌心」插值, 跟随内收后的座位
     s.bet = { x: s.seat.x + (cx - s.seat.x) * 0.55, y: s.seat.y + (cy - s.seat.y) * 0.55 };
     s.card = { x: s.seat.x + (cx - s.seat.x) * 0.3, y: s.seat.y + (cy - s.seat.y) * 0.3 };
-    // 铭牌绑定初值: 明显底部座位放头像上方, 其余放头像下方; 由求解器微调
-    if (dy > 0.35) {
-      s.plate = { x: s.seat.x, y: s.seat.y - 112 };
+    // 铭牌绑定初值: 底部/顶部座位紧贴头像上方, 中间带(侧座)紧贴头像下方; 由求解器微调
+    if (dy > 0.35 || dy <= -0.3) {
+      s.plate = { x: s.seat.x, y: s.seat.y - 34 };
     } else {
-      s.plate = { x: s.seat.x, y: s.seat.y + 118 };
+      s.plate = { x: s.seat.x, y: s.seat.y + 26 + RECTS.plateH + 4 };
     }
   }
 };

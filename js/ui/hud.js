@@ -418,6 +418,7 @@ Hud.updateNameplates = function (engine) {
     var badges = $('.np-badges', plate);
     var html = '';
     if (engine.dealerIdx === p.id && p.dealt) html += '<span class="bd bd-d">D</span>';
+    if (Hud._blindBadges[p.id]) html += '<span class="bd bd-blind">' + Hud._blindBadges[p.id] + '</span>';
     if (p.bounty > 0) html += '<span class="bd bd-b">💀' + p.bounty + '</span>';
     if (p.rebuys > 0) html += '<span class="bd bd-r">↻' + p.rebuys + '</span>';
     badges.innerHTML = html;
@@ -627,23 +628,13 @@ Hud.bindKeys = function () {
   });
 };
 
-/* ================= 手牌显示(人类) ================= */
-Hud.setHeroCards = function (cards, engine) {
-  var box = $('#hero-cards');
-  box.innerHTML = cards.map(function (c) {
-    var s = c & 3, r = c >> 2;
-    return '<div class="hcard ' + ((s === 1 || s === 2) ? 'red' : '') + '">' +
-      '<span class="hc-rank">' + PK.RANK_NAME[r] + '</span><span class="hc-suit">' + PK.SUIT_CHARS[s] + '</span></div>';
-  }).join('');
-  box.classList.remove('hidden');
-  if (cards.length === 2) {
-    var made = PK.evalDetailed(cards.concat(engine.board), 2 + engine.board.length);
-    $('#hero-hand-name').textContent = engine.board.length ? '当前成牌: ' + made.catName : '起手: ' + PK.cardsName(cards);
-  }
+/* ================= 盲注徽标 ================= */
+Hud._blindBadges = {};
+Hud.setBlindBadge = function (playerId, text) {
+  this._blindBadges[playerId] = text;
 };
-Hud.clearHeroCards = function () {
-  $('#hero-cards').classList.add('hidden');
-  $('#hero-hand-name').textContent = '';
+Hud.clearBlindBadges = function () {
+  this._blindBadges = {};
 };
 
 /* ================= LLM 建议卡片 ================= */

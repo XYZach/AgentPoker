@@ -168,7 +168,7 @@ async function handleEvent(ev) {
     case 'handStart': {
       scene.clearHandVisuals();
       scene.resetAvatarStates();
-      PK.Hud.clearHeroCards();
+      PK.Hud.clearBlindBadges();
       PK.Hud.clearAdvice();
       PK.Hud.hideRunoutBars();
       PK.Hud.vignette(false);
@@ -189,6 +189,10 @@ async function handleEvent(ev) {
       PK.Hud.updateNameplates(engine);
       if (ev.kind === 'ante' || ev.kind === 'sb' || ev.kind === 'bb') {
         var kindName = { ante: '前注', sb: '小盲', bb: '大盲' }[ev.kind];
+        if (ev.kind !== 'ante') {
+          PK.Hud.setBlindBadge(ev.playerId, kindName);
+          PK.Hud.updateNameplates(engine);
+        }
         PK.Hud.actionBubble(ev.playerId, kindName + ' ' + PK.fmt(ev.amount), 'post');
         PK.Hud.log('<span class="dim">' + p.name + '</span> ' + kindName + ' ' + PK.fmt(ev.amount));
       }
@@ -198,8 +202,6 @@ async function handleEvent(ev) {
       var prom = scene.dealHole(ev.playerId, ev.card, ev.round, ev.faceUp);
       PK.Hud.sfx('deal');
       if (ev.faceUp) {
-        var hero = engine.players[ev.playerId];
-        PK.Hud.setHeroCards(hero.hole.slice(), engine);
         scheduleEquity();
       }
       await PK.TWEEN.wait(90);
