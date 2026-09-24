@@ -480,5 +480,52 @@ section('gto');
   ok(s2.pos === 'BB' && s2.act === 'check', '3max dealer+2 = BB check');
 }
 
+/* ---------- AI 面对全下的应对 ---------- */
+section('ai vs allin');
+{
+  // hero 满码全下 60 次, 各风格 AI 不应全弃(Chen 硬阈值过紧的回归测试)
+  const equitySim = (p, nOpp) => {
+    const r = PK.Equity.simulate(p.hole, [], nOpp, [], 300, Math.random);
+    return r.win + r.tie * 0.5;
+  };
+  const N = 60;
+  const res = {};
+  for (let i = 0; i < N; i++) {
+    const eng = new PK.Engine(mkCfg('cash', 6), Math.random);
+    eng.startHand();
+    eng.act(0, { type: 'allin' });
+    eng.handActive().forEach(q => {
+      if (q.id === 0 || q.allIn) return;
+      const d = PK.AI_decide(eng, q, pp => equitySim(pp, 1), Math.random);
+      if (!res[q.styleKey]) res[q.styleKey] = { fold: 0, call: 0 };
+      if (d.type === 'fold') res[q.styleKey].fold++;
+      else res[q.styleKey].call++;
+    });
+  }
+  Object.keys(res).forEach(k => {
+    ok(res[k].call > 0, k + ' never calls a full-stack allin (fold ' + res[k].fold + ')');
+  });
+  // 松弱(FISH) 应比紧弱(ROCK) 更爱跟全下
+  if (res.FISH && res.ROCK) {
+    const fp = res.FISH.call / (res.FISH.call + res.FISH.fold);
+    const rp = res.ROCK.call / (res.ROCK.call + res.ROCK.fold);
+    ok(fp > rp, 'FISH call% (' + Math.round(fp * 100) + ') should exceed ROCK (' + Math.round(rp * 100) + ')');
+  }
+  // hero 短码(10BB) 全下: 总跟注数 > 0
+  let shortCalls = 0;
+  for (let i = 0; i < 30; i++) {
+    const eng = new PK.Engine(mkCfg('cash', 6), Math.random);
+    eng.startHand();
+    eng.players[0].stack = 100 - eng.players[0].bet;
+    eng.act(0, { type: 'allin' });
+    eng.handActive().forEach(q => {
+      if (q.id === 0 || q.allIn) return;
+      const d = PK.AI_decide(eng, q, pp => equitySim(pp, 1), Math.random);
+      if (d.type === 'call' || d.type === 'allin') shortCalls++;
+    });
+  }
+  ok(shortCalls > 0, 'nobody ever calls a short allin');
+}
+
 console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -107,9 +107,25 @@ function preflop(engine, p, style, rng) {
   var callOK = eqEst + style.sticky * 0.06 > potOdds + style.callMargin;
   var callSize = legal.toCall / (p.stack + p.bet);
 
+  // 超大盘(含全下): 用蒙特卡洛胜率(只对已全下的对手模拟) 对比底池赔率决策。
+  // Chen Q 硬阈值在此严重过紧(hero 满码全下时 AI 几乎必弃, 须 AK 级才跟), 游戏无对抗性。
+  if (callSize > 0.5) {
+    var nAllin = 0;
+    engine.handActive().forEach(function (q) { if (q.id !== p.id && q.allIn) nAllin++; });
+    var eqA = eqEst;
+    if (PK.Equity && p.hole && p.hole.length >= 2) {
+      var rA = PK.Equity.simulate(p.hole, [], Math.max(1, nAllin), [], 260, rng);
+      eqA = rA.win + rA.tie * 0.5;
+    }
+    eqA = Math.max(0.02, Math.min(0.99, eqA + PK.gauss(rng) * 0.03));
+    var marginA = 0.10 + style.callMargin * 0.6;   // 风格承载松紧: fish 爱跟, ROCK 更紧
+    if (eqA > potOdds + marginA + 0.14 && rng() < style.agg * 0.7) return { type: 'allin' };
+    if (eqA > potOdds + marginA) return { type: 'call' };
+    return { type: 'fold' };
+  }
+
   if (!wantPlay && !callOK) return { type: 'fold' };
   if (callSize > 0.35 && eqEst < 0.55) return { type: 'fold' }; // 大注面前没货不跟
-  if (callSize > 0.6 && eqEst < 0.62) return { type: 'fold' };
 
   // 3bet
   if ((qAdj > 0.62 + style.callMargin && rng() < style.agg) || rng() < style.bluff * 0.35) {
