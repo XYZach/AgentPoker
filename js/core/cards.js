@@ -187,6 +187,14 @@ PK.evalDetailed = function (cards, n) {
   return { score: score, cat: cat, catName: PK.catName(cat), best5: picks2 };
 };
 
+/* 手牌+公共牌的当前成牌标签(玩家状态提示); A 高同花顺显示为皇家同花顺 */
+PK.madeLabel = function (cards) {
+  if (!cards || cards.length < 2) return null;
+  var det = PK.evalDetailed(cards);
+  var royal = det.cat === 8 && ((det.score >> 16) & 0xf) === 14;
+  return royal ? '皇家同花顺' : PK.CAT_NAMES[det.cat];
+};
+
 /* ---------- Chen 起手牌公式(AI 翻牌前用) ---------- */
 PK.chen = function (c1, c2) {
   var r1 = Math.max(c1 >> 2, c2 >> 2), r2 = Math.min(c1 >> 2, c2 >> 2);

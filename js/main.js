@@ -141,6 +141,14 @@ async function playHand() {
   PK.Hud.updateNameplates(engine);
 }
 
+/* hero 成牌提示: 手牌+公共牌的当前牌型, 挂在手牌下方 */
+function updateHeroMade() {
+  var engine = App.engine;
+  var hero = engine && engine.players ? engine.players[App.heroId] : null;
+  if (!hero || !hero.hole || hero.hole.length < 2 || hero.folded || hero.out) { App.scene.setHeroMade(null); return; }
+  App.scene.setHeroMade(PK.madeLabel(hero.hole.concat(engine.board)));
+}
+
 /* ================= AI 决策 ================= */
 function knownDeadFor(p) {
   // 公开信息: 亮出的弃牌 + 公共牌(在 simulate 里以 board 传入, dead 只含弃牌)
@@ -210,6 +218,7 @@ async function handleEvent(ev) {
       };
       scene.clearHandVisuals();
       scene.resetAvatarStates();
+      scene.setHeroMade(null);
       PK.Hud.clearBlindBadges();
       PK.Hud.clearAdvice();
       PK.Hud.hideRunoutBars();
@@ -248,6 +257,7 @@ async function handleEvent(ev) {
       PK.Hud.sfx('deal');
       if (ev.faceUp) {
         scheduleEquity();
+        if (ev.round === 1 && ev.playerId === App.heroId) updateHeroMade();
       }
       await PK.TWEEN.wait(90);
       ev._anim = prom;
@@ -273,6 +283,7 @@ async function handleEvent(ev) {
       PK.Hud.sfx(sounds[ev.action]);
       if (ev.action === 'fold') {
         scene.setAvatarState(ev.playerId, 'folded');
+        if (ev.playerId === App.heroId) updateHeroMade();
         await scene.muckCards(ev.playerId);
       } else {
         scene.setBet(ev.playerId, pl.bet);
@@ -298,6 +309,7 @@ async function handleEvent(ev) {
       await scene.collectBets();
       scene.setPot(engine.potTotal());
       await scene.dealCommunity(ev.cards);
+      updateHeroMade();
       ev.cards.forEach(function (c) { PK.Hud.sfx('flip'); });
       var streetName = [PK.t('翻牌前'), PK.t('翻牌 🌟'), PK.t('转牌'), PK.t('河牌')][ev.street];
       PK.Hud.log('<b>—— ' + streetName + ' ' + PK.cardsName(engine.board) + ' ——</b>', 'street');

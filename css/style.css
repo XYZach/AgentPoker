@@ -498,6 +498,18 @@ body[data-mode="squid"] .panel-title { color: var(--teal); }
 /* AI 实时数据标签 */
 .np-stats { font-size: 10.5px; color: var(--dim); letter-spacing: 0.3px; margin-top: 1px; font-variant-numeric: tabular-nums; }
 body.pk-compact .nplate .np-stats { font-size: 9.5px; }
+
+/* hero 成牌标签: 手牌正下方, 操作栏弹出时上移叠牌底避让 */
+.hero-made {
+  position: absolute; z-index: 24; transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(20, 26, 36, 0.96), rgba(20, 26, 36, 0.9));
+  border: 1px solid var(--gold); border-radius: 999px;
+  color: var(--gold); font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 3px 13px; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+/* 避让用 margin 不用 transform+transition: IAB 后台 rAF 冻结时 transition 停在起点 */
+body.ab-open .hero-made { margin-top: -40px; }
 .menu-check {
   display: flex; align-items: center; gap: 8px; cursor: pointer;
   font-size: 13.5px; color: #c3cbd9; margin: 4px 0 14px; user-select: none;

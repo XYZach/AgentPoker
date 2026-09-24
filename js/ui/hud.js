@@ -694,6 +694,7 @@ Hud._actionResolve = null;
 Hud.showActionbar = function (legal, heroName) {
   var bar = $('#actionbar');
   bar.classList.remove('hidden');
+  document.body.classList.add('ab-open'); /* 成牌标签避让: 操作栏弹出时上移 */
   this._legal = legal;
   var self = this;
   $('#ab-tocall').textContent = legal.toCall > 0 ? PK.fmt(legal.toCall) : '0';
@@ -764,6 +765,7 @@ Hud.showActionbar = function (legal, heroName) {
 };
 Hud.hideActionbar = function () {
   $('#actionbar').classList.add('hidden');
+  document.body.classList.remove('ab-open');
   Hud._actionResolve = null;
 };
 

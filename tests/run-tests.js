@@ -56,6 +56,21 @@ const detSf = PK.evalDetailed([C(14,0),C(2,0),C(3,0),C(4,0),C(5,0),C(9,1),C(9,2)
 ok(detSf.best5.length === 5 && detSf.best5.every(c => (c&3)===0), 'detailed wheel SF all spades');
 ok(detSf.best5.includes(C(14,0)), 'wheel SF uses ace');
 
+/* ---------- 成牌标签 ---------- */
+section('madeLabel');
+ok(PK.madeLabel([C(14,0),C(14,1)]) === '一对', 'made hole pair');
+ok(PK.madeLabel([C(14,0),C(9,1),C(9,2),C(9,3),C(5,0),C(6,1),C(7,2)]) === '三条', 'made trips');
+ok(PK.madeLabel([C(9,0),C(9,1),C(2,2),C(2,3),C(3,1),C(6,2),C(7,0)]) === '两对', 'made two pair');
+ok(PK.madeLabel([C(14,0),C(11,1),C(9,2),C(7,3),C(5,1),C(3,2),C(2,3)]) === '高牌', 'made high card');
+ok(PK.madeLabel([C(14,0),C(11,0),C(9,0),C(7,0),C(5,0),C(13,1),C(12,2)]) === '同花', 'made flush');
+ok(PK.madeLabel([C(8,0),C(9,0),C(10,0),C(11,0),C(12,0),C(2,1),C(3,2)]) === '同花顺', 'made straight flush');
+ok(PK.madeLabel([C(9,0),C(10,0),C(11,0),C(12,0),C(13,0),C(2,1),C(3,2)]) === '同花顺', 'made K-high SF not royal');
+ok(PK.madeLabel([C(10,0),C(11,0),C(12,0),C(13,0),C(14,0),C(2,1),C(3,2)]) === '皇家同花顺', 'made royal flush');
+ok(PK.madeLabel([C(14,0),C(2,0),C(3,0),C(4,0),C(5,0),C(9,1),C(9,2)]) === '同花顺', 'made wheel SF');
+ok(PK.madeLabel([C(8,0),C(8,1),C(8,2),C(5,1),C(5,2),C(6,0),C(7,0)]) === '葫芦', 'made full house');
+ok(PK.madeLabel([C(8,0),C(8,1),C(8,2),C(8,3),C(5,1),C(5,2),C(6,0)]) === '四条', 'made quads');
+ok(PK.madeLabel([C(14,0)]) === null, 'made needs 2+ cards');
+
 /* ---------- 胜率 ---------- */
 section('equity');
 const rng = PK.mulberry32(42);

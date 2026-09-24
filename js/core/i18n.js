@@ -186,6 +186,7 @@ var EN = {
   '高牌': 'High Card', '一对': 'Pair', '两对': 'Two Pair', '三条': 'Three of a Kind',
   '顺子': 'Straight', '同花': 'Flush', '葫芦': 'Full House', '四条': 'Four of a Kind',
   '同花顺': 'Straight Flush',
+  '皇家同花顺': 'Royal Flush',
 
   /* AI 风格 */
   '紧凶': 'TAG', '松凶': 'LAG', '紧弱': 'Rock', '松弱': 'Fish', '均衡': 'Balanced', '疯狂': 'Maniac',

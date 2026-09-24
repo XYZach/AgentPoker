@@ -185,6 +185,11 @@ Scene2D.prototype._layoutSeat = function (pid) {
     s.plate = { x: s.seat.x, y: s.seat.y - 52 };
     s.bet = { x: s.seat.x + (cx - s.seat.x) * 0.55, y: s.seat.y + (cy - s.seat.y) * 0.45 };
     s.card = { x: s.seat.x + 106, y: s.seat.y - 4 };
+    // 成牌标签跟手牌水平居中(操作栏弹出时 CSS 自动上移叠牌底避让)
+    if (this._made) {
+      this._made.style.left = s.card.x + 'px';
+      this._made.style.top = (s.card.y + 49) + 'px';
+    }
   } else {
     // 座位轨迹: 侧面内收(坐到桌边), 避开两侧 HUD 面板
     var ex = 1.04 - 0.26 * Math.abs(dx);
@@ -380,6 +385,9 @@ Scene2D.prototype.buildPlayers = function (players) {
     self._avatars[p.id] = av;
     self._anchors[p.id] = { name: { position: { x: 0, y: 0, z: 0 } }, bet: { position: { x: 0, y: 0, z: 0 } } };
   });
+  /* hero 成牌标签: 挂在手牌下方, 提示当前成牌(结合公共牌) */
+  this._made = el('div', 'hero-made hidden', this._root);
+  this._madeKey = null;
   this._layout();
 };
 
@@ -758,6 +766,15 @@ Scene2D.prototype.refreshLang = function () {
     var face = heroAv.querySelector('.av2d-face');
     if (face) face.textContent = PK.t('我');
   }
+  if (this._made && this._madeKey) this._made.textContent = PK.t(this._madeKey);
+};
+
+/* hero 成牌标签: 传中文 key(存储以便切语言重译), null 隐藏 */
+Scene2D.prototype.setHeroMade = function (key) {
+  this._madeKey = key || null;
+  if (!key) { this._made.classList.add('hidden'); return; }
+  this._made.textContent = PK.t(key);
+  this._made.classList.remove('hidden');
 };
 
 Scene2D.prototype.destroy = function () {
