@@ -120,6 +120,7 @@ var LLM = PK.LLM = {
       '\n蒙特卡洛胜率估算: 胜' + (equityInfo ? (equityInfo.win * 100).toFixed(1) + '%' : '未知') +
       ' 平' + (equityInfo ? (equityInfo.tie * 100).toFixed(1) + '%' : '') +
       '\n跟注需 ' + legal.toCall + ', 底池赔率要求胜率 ' + (legal.potOdds * 100).toFixed(1) + '%' +
+      '\n加注尺寸原则: 翻前开牌约 2~3 个大盲(每多一人跟注 +1bb), 3bet 约为上次加注的 3 倍; 翻后下注约半池到三分之二池, 加注到约对方下注的 3 倍' +
       '\n可选动作: ' + [legal.canFold && '弃牌', legal.canCheck && '过牌', legal.canCall && ('跟注' + legal.callAmount), legal.canBet && '下注', legal.canRaise && '加注', p.stack > 0 && '全下'].filter(Boolean).join('/') +
       (legal.canRaise || legal.canBet ? '(下注/加注额度 ' + legal.minTo + '~' + legal.maxTo + ')' : '') +
       '\n\n只输出 JSON: {"action":"fold|check|call|bet|raise|allin","amount":数字(下注/加注到的总额),"reason":"40字内理由","confidence":0到100}';
@@ -144,6 +145,7 @@ var LLM = PK.LLM = {
       '\n你的蒙特卡洛胜率: ' + (equityInfo ? (equityInfo.win * 100).toFixed(1) + '%' : '未知') +
       '\n本地风格算法的倾向: ' + JSON.stringify(styleDecision) +
       '\n跟注需 ' + legal.toCall + ', 底池赔率 ' + (legal.potOdds * 100).toFixed(1) + '%' +
+      '\n加注尺寸原则: 翻前开牌约 2~3 个大盲(每多一人跟注 +1bb), 3bet 约为上次加注的 3 倍; 翻后下注约半池到三分之二池, 加注到约对方下注的 3 倍' +
       '\n\n只输出 JSON: {"action":"fold|check|call|bet|raise|allin","amount":数字(下注/加注到的总额),"reason":"20字内"}';
     var txt = await this.chat(sys, user, { maxTokens: 300, temperature: 0.8 });
     var obj = this.parseJSON(txt);

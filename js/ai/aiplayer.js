@@ -86,9 +86,11 @@ function preflop(engine, p, style, rng) {
     var openRoll = rng();
     var pfrEff = Math.min(0.9, style.pfr * (0.8 + 0.5 * posF) + urgency * 0.5);
     if (openRoll < pfrEff || qAdj > 0.72) {
-      var size = engine.bb * (2.2 + style.sizing * 1.2 + rng() * 0.8);
-      // 面对 limp 略加
-      var to = Math.round(p.bet + Math.max(size, engine.currentBet * 2.5));
+      /* 开牌原则: 2~3bb 为基, 每个已跟注入池的玩家 +1bb */
+      var limpers = 0;
+      engine.players.forEach(function (q) { if (q.id !== p.id && !q.folded && q.hasActed && q.bet >= engine.bb) limpers++; });
+      var size = engine.bb * (2.2 + style.sizing * 0.6 + rng() * 0.5) + limpers * engine.bb;
+      var to = Math.round(Math.max(size, engine.currentBet * 2.5));
       return { type: 'raise', amount: Math.min(to, legal.maxTo) };
     }
     return { type: 'check' };
@@ -129,7 +131,11 @@ function preflop(engine, p, style, rng) {
 
   // 3bet
   if ((qAdj > 0.62 + style.callMargin && rng() < style.agg) || rng() < style.bluff * 0.35) {
-    var to3 = Math.round(engine.currentBet * (2.6 + style.sizing));
+    /* 3bet 原则: 上次加注的 3~3.7 倍, 每个冷跟注者 +1bb */
+    var coldCallers = 0;
+    engine.players.forEach(function (q) { if (q.id !== p.id && !q.folded && !q.allIn && q.hasActed && q.bet >= engine.currentBet) coldCallers++; });
+    if (engine.currentBet > engine.bb) coldCallers = Math.max(0, coldCallers - 1); /* 去掉加注者本人 */
+    var to3 = Math.round(engine.currentBet * (3 + style.sizing * 0.6) + coldCallers * engine.bb);
     if (to3 >= legal.maxTo * 0.72) return { type: 'allin' };
     return { type: 'raise', amount: Math.min(to3, legal.maxTo) };
   }
