@@ -245,6 +245,7 @@ Hud.initLobby = function (onStart) {
     } catch (e) {
       Hud.toast('✗ ' + String(e.message || e).slice(0, 120), 'err', 4200);
     }
+    updateLLMHint(); // 测试后刷新提示(输入框值此时才写入 cfg)
     btn.disabled = false; btn.textContent = PK.t('测试连接');
   });
   updateLLMHint();
@@ -329,6 +330,7 @@ Hud.initGame = function (engine, scene) {
       '<div class="np-bubble"></div>' +
       '<div class="np-row1"><span class="np-name">' + esc(p.name) + '</span>' + styleTag + '</div>' +
       '<div class="np-stack"></div>' +
+      '<div class="np-stats"></div>' +
       '<div class="np-badges"></div>' +
       '<div class="np-status"></div>';
     $('#labels').appendChild(plate);
@@ -402,6 +404,21 @@ Hud.initGame = function (engine, scene) {
   $('#tb-menu').onclick = function () { if (Hud.onMenu) Hud.onMenu(); };
   $('#tb-help').onclick = function () { Hud.showHelp(); };
   $('#log-toggle').onclick = function () { $('#log-panel').classList.toggle('open'); };
+
+  // 预选动作(跨手保留, 游戏内随时可改)
+  var pcCheck = $('#pc-check'), pcFold = $('#pc-fold');
+  if (pcCheck) pcCheck.checked = self._preactMode === 'checkcall';
+  if (pcFold) pcFold.checked = self._preactMode === 'fold';
+  if (pcCheck) pcCheck.onchange = function () {
+    self._preactMode = this.checked ? 'checkcall' : null;
+    if (this.checked && pcFold) pcFold.checked = false;
+    Hud.sfx('click');
+  };
+  if (pcFold) pcFold.onchange = function () {
+    self._preactMode = this.checked ? 'fold' : null;
+    if (this.checked && pcCheck) pcCheck.checked = false;
+    Hud.sfx('click');
+  };
   savePrefs();
   function savePrefs() { Hud.savePrefs(); }
 };
@@ -467,6 +484,15 @@ Hud.updateNameplates = function (engine) {
     var plate = Hud._plates[p.id];
     if (!plate) return;
     $('.np-stack', plate).textContent = PK.fmt(p.stack);
+    /* 实时数据标签: 本局 VPIP/PFR/摊牌(3 手起显示) */
+    var statsEl = $('.np-stats', plate);
+    if (statsEl) {
+      if (p.stats.hands >= 3) {
+        statsEl.textContent = 'VPIP ' + Math.round(p.stats.vpip / p.stats.hands * 100) + '% · PFR ' +
+          Math.round((p.stats.pfr || 0) / p.stats.hands * 100) + '% · SD ' + (p.stats.sd || 0);
+        statsEl.style.display = '';
+      } else statsEl.style.display = 'none';
+    }
     var styleEl = $('.np-style', plate);
     if (!p.isHuman && styleEl && PK.AI_STYLES[p.styleKey]) styleEl.textContent = PK.t(PK.AI_STYLES[p.styleKey].label);
     var badges = $('.np-badges', plate);
@@ -487,6 +513,13 @@ Hud.updateNameplates = function (engine) {
     plate.classList.toggle('folded', !!p.folded && !!p.dealt);
     plate.classList.toggle('out', !!p.out);
   });
+  /* 预选动作条: 你在本手内(未出局未弃牌)时可见 */
+  var pre = $('#preact');
+  if (pre) {
+    var hero = null;
+    engine.players.forEach(function (q) { if (q.isHuman) hero = q; });
+    pre.classList.toggle('hidden', !(hero && hero.dealt && !hero.folded && !hero.out));
+  }
 };
 
 Hud.actionBubble = function (playerId, text, cls) {
@@ -828,9 +861,11 @@ Hud.showReview = function (log) {
   });
   html += '</table>';
 
-  html += '<div class="rv-sec-title">' + PK.t('动作时间线') + '</div><div class="rv-tl">';
+  html += '<div class="rv-sec-title">' + PK.t('动作时间线') + '</div><div class="rv-tl" id="rv-tl">';
   var curStreet = -1;
   var actNames = { ante: PK.t('前注'), sb: PK.t('小盲'), bb: PK.t('大盲'), fold: PK.t('弃牌'), check: PK.t('过牌'), call: PK.t('跟注'), bet: PK.t('下注'), raise: PK.t('加注'), allin: PK.t('全下') };
+  var heroId = -1;
+  log.players.forEach(function (rp) { if (rp.isHero) heroId = rp.id; });
   log.actions.forEach(function (a) {
     if (a.street !== curStreet) {
       curStreet = a.street;
@@ -839,13 +874,92 @@ Hud.showReview = function (log) {
     var txt = actNames[a.act] || a.act;
     if (a.act === 'raise') txt = PK.t('加注到') + ' ' + PK.fmt(a.to);
     else if (a.act === 'bet' || a.act === 'call' || a.act === 'sb' || a.act === 'bb' || a.act === 'ante') txt += ' ' + PK.fmt(a.amount);
-    html += '<div class="rv-tl-row' + (a.act === 'fold' ? ' dim' : '') + '"><span class="rv-tl-name">' + esc(nameOf[a.pid] != null ? nameOf[a.pid] : '?') + '</span><b>' + txt + '</b></div>';
+    var eqNote = '';
+    if (a.eq) {
+      var eqAll = a.eq.win + a.eq.tie / 2;
+      eqNote = '<span class="dim">(胜率 ' + Math.round(eqAll * 100) + '%' +
+        (a.potOdds > 0 ? ' · 需 ' + Math.round(a.potOdds * 100) + '%' + (eqAll >= a.potOdds ? ' <span class="ok-text">✓</span>' : ' <span class="bad-text">✗</span>') : '') + ')</span>';
+    }
+    html += '<div class="rv-tl-row' + (a.act === 'fold' ? ' dim' : '') + (a.pid === heroId ? ' hero-tl-row' : '') + '"><span class="rv-tl-name">' + esc(nameOf[a.pid] != null ? nameOf[a.pid] : '?') + '</span><b>' + txt + '</b>' + eqNote + '</div>';
   });
   if (!log.actions.length) html += '<div class="dim">—</div>';
   html += '</div>';
 
-  html += '<div class="modal-btns"><button class="btn primary" data-close="next">' + PK.t('下一局') + '</button></div>';
-  return this.modal(html, { cls: 'modal-review' });
+  html += '<div id="rv-coach" class="rv-coach hidden"></div>';
+  html += '<div class="modal-btns"><button class="btn" id="rv-copy">' + PK.t('📋 复制牌谱') + '</button>' +
+    (PK.LLM.ready() ? '<button class="btn primary" id="rv-coach-btn">🤖 ' + PK.t('AI 点评本手') + '</button>' : '') +
+    '<button class="btn" data-close="next">' + PK.t('下一局') + '</button></div>';
+  var m = this.modal(html, { cls: 'modal-review' });
+
+  /* 复制牌谱: 标准文本格式, 便于贴到群里/论坛讨论 */
+  var copyBtn = $('#rv-copy');
+  if (copyBtn) copyBtn.onclick = function () {
+    var lines = [];
+    var isEn2 = PK.I18N.lang === 'en';
+    var modeName2 = { cash: 'Cash', tourney: 'Tournament', squid: 'Squid' }[engine.cfg.mode] || engine.cfg.mode;
+    lines.push('AgentPoker ' + modeName2 + ' · Hand #' + log.handNo + ' · ' +
+      (isEn2 ? 'Blinds ' : PK.t('盲注') + ' ') + log.sb + '/' + log.bb +
+      (log.ante ? (isEn2 ? ' ante ' : ' ' + PK.t('前注') + ' ') + log.ante : ''));
+    log.streets.forEach(function (s) {
+      lines.push((['Preflop', 'Flop', 'Turn', 'River'][s.street]) + ': ' + cardsText(s.cards));
+    });
+    log.players.forEach(function (rp) {
+      if (!rp.dealt) return;
+      var st2 = rp.folded ? 'fold' : (rp.out ? 'out' : '');
+      lines.push(rp.name + (rp.isHero ? ' (Hero)' : '') + ': [' + cardsText(rp.hole) + ']' + (st2 ? ' ' + st2 : ''));
+    });
+    log.actions.forEach(function (a) {
+      var nm = nameOf[a.pid] != null ? nameOf[a.pid] : '?';
+      if (a.act === 'raise') lines.push(nm + ': raise to ' + a.to);
+      else if (a.act === 'bet' || a.act === 'call') lines.push(nm + ': ' + a.act + ' ' + a.amount);
+      else lines.push(nm + ': ' + a.act);
+    });
+    var awardTxt = log.awards.map(function (aw) { return (nameOf[aw.pid] || '?') + ' +' + aw.amount; }).join(', ');
+    if (awardTxt) lines.push('Pot: ' + awardTxt);
+    var text = lines.join('\n');
+    function cardsText(cs) { return (cs || []).map(function (c) { return PK.cardName(c); }).join(' '); }
+    function doCopy() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        var settled = false;
+        navigator.clipboard.writeText(text).then(function () {
+          settled = true;
+          Hud.toast(PK.t('✓ 牌谱已复制到剪贴板'), 'ok');
+          copyBtn.textContent = PK.t('✓ 已复制');
+        }, function () { if (!settled) { settled = true; fallbackCopy(); } });
+        setTimeout(function () { if (!settled) { settled = true; fallbackCopy(); } }, 900); /* 部分内嵌浏览器 promise 永不落定 */
+      } else fallbackCopy();
+    }
+    function fallbackCopy() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try {
+        var ok = document.execCommand('copy');
+        if (ok) { Hud.toast(PK.t('✓ 牌谱已复制到剪贴板'), 'ok'); copyBtn.textContent = PK.t('✓ 已复制'); }
+        else Hud.toast(PK.t('复制失败, 请手动选择文本'), 'err');
+      } catch (e) { Hud.toast(PK.t('复制失败, 请手动选择文本'), 'err'); }
+      ta.remove();
+    }
+    doCopy();
+  };
+
+  /* LLM 教练赛后点评 */
+  var coachBtn = $('#rv-coach-btn');
+  if (coachBtn) coachBtn.onclick = async function () {
+    var box = $('#rv-coach');
+    coachBtn.disabled = true;
+    box.classList.remove('hidden');
+    box.innerHTML = '<span class="spinner"></span> ' + PK.t('点评中…');
+    try {
+      var text = await PK.LLM.coach(Hud.engine, heroId, log);
+      box.innerHTML = '<div class="rv-coach-title">🤖 ' + PK.t('AI 教练点评') + '</div><div class="rv-coach-text">' + esc(text) + '</div>';
+      coachBtn.classList.add('hidden');
+    } catch (e) {
+      box.innerHTML = '<span class="bad-text">' + PK.t('点评失败: ') + esc(String(e.message || e).slice(0, 120)) + '</span>';
+      coachBtn.disabled = false;
+    }
+  };
+  return m;
 };
 
 Hud.showResults = function (data) {
@@ -867,6 +981,8 @@ Hud.showHelp = function () {
     '<p>' + PK.t('<b>记牌器</b>(左栏):绿色=公共牌, 蓝色=你的手牌, 红色=已弃牌(开启"亮弃牌"时)。实时统计已见牌。') + '</p>' +
     '<p>' + PK.t('<b>胜率</b>(右栏):蒙特卡洛模拟 vs 场上对手数, 已见死牌会从模拟中剔除; 同时显示底池赔率参考。') + '</p>' +
     '<p>' + PK.t('<b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。') + '</p>' +
+    '<p>' + PK.t('<b>预选动作</b>(操作栏上方):勾选「自动过牌/跟注」后轮到你时自动过牌(无人下注)或跟注(面对下注); 勾选「自动弃牌」则自动弃牌。设置跨手保留, 随时可取消, 快进多手时省大量点击。') + '</p>' +
+    '<p>' + PK.t('<b>复盘</b>(开启"每局复盘"后):时间线里你的每个决策点都标注当时的胜率与底池赔率(✓/✗ = 赔率角度是否合理); 可一键「复制牌谱」发到群里讨论; 配置大模型后可让「AI 教练」点评整手牌。对手铭牌显示本局实时 VPIP/PFR/摊牌数(3 手起)。') + '</p>' +
     '<p>' + PK.t('<b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。') + '</p>' +
     '<p class="dim">' + PK.t('公平性: AI 与建议只用公开信息+自身手牌, 绝不偷看牌堆。') + '</p>' +
     '</div><div class="modal-btns"><button class="btn primary" data-close="ok">' + PK.t('开始游戏') + '</button></div>';

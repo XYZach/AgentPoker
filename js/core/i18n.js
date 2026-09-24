@@ -161,6 +161,21 @@ var EN = {
   '底牌': 'Hole Cards', '结果': 'Result', '动作时间线': 'Action Timeline',
   '开始游戏': 'Start Playing',
 
+  /* 复盘增强: 牌谱复制 / AI 点评 / 预选动作 */
+  '📋 复制牌谱': '📋 Copy Hand History',
+  '✓ 已复制': '✓ Copied',
+  '✓ 牌谱已复制到剪贴板': '✓ Hand history copied to clipboard',
+  '复制失败, 请手动选择文本': 'Copy failed, please select the text manually',
+  'AI 点评本手': 'AI Coach Review',
+  'AI 教练点评': 'AI Coach',
+  '点评中…': 'Coach is thinking…',
+  '点评失败: ': 'Coach failed: ',
+  '自动过牌/跟注': 'Auto check / call',
+  '自动弃牌': 'Auto fold',
+  '预选生效: 自动弃牌': 'Pre-action: auto-folded',
+  '预选生效: 自动过牌': 'Pre-action: auto-checked',
+  '预选生效: 自动跟注': 'Pre-action: auto-called',
+
   '鱿鱼时钟: ': 'Squid clock: ',
   '本手结束后淘汰最短码!': 'Shortest stack busts after this hand!',
   '✓ 已启用 — AI 会给建议并参与人机决策': '✓ Enabled — AI advises you and joins bot decisions',
@@ -190,6 +205,10 @@ var EN = {
     '<b>Equity</b> (right): Monte-Carlo simulation vs active opponents; dead cards are excluded. Pot odds shown as a reference.',
   '<b>AI 决策</b>:人机按「风格参数 × 胜率 × 随机噪声」决策; 配置大模型 API 后, AI 玩家会按比例咨询大模型并与风格决策加权融合, 也可给你实时建议。':
     '<b>AI decisions</b>: bots act on style × equity × random noise; with an LLM API configured, they also consult the model and blend its advice — and you can get real-time advice too.',
+  '<b>预选动作</b>(操作栏上方):勾选「自动过牌/跟注」后轮到你时自动过牌(无人下注)或跟注(面对下注); 勾选「自动弃牌」则自动弃牌。设置跨手保留, 随时可取消, 快进多手时省大量点击。':
+    '<b>Pre-actions</b> (above the action bar): tick "Auto check / call" to auto-check when nobody has bet and auto-call when facing a bet; tick "Auto fold" to fold automatically. Settings persist across hands and can be cancelled anytime — a big time-saver when fast-forwarding many hands.',
+  '<b>复盘</b>(开启"每局复盘"后):时间线里你的每个决策点都标注当时的胜率与底池赔率(✓/✗ = 赔率角度是否合理); 可一键「复制牌谱」发到群里讨论; 配置大模型后可让「AI 教练」点评整手牌。对手铭牌显示本局实时 VPIP/PFR/摊牌数(3 手起)。':
+    '<b>Review</b> (with "Hand Review" on): every decision you made is annotated with the equity and pot odds at that moment (✓/✗ = +EV or -EV by pot odds); one click copies the hand history for group chat discussion; with an LLM configured, the AI Coach analyzes the whole hand. Opponent nameplates show live VPIP/PFR/showdown stats (after 3 hands).',
   '<b>快捷键</b>:F 弃牌 · C 过牌/跟注 · R 加注(滑条) · Enter 确认加注 · A 全下 · D AI建议。':
     '<b>Hotkeys</b>: F fold · C check/call · R raise (slider) · Enter confirm raise · A all-in · D AI advice.'
 };

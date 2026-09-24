@@ -25,7 +25,7 @@ function Engine(cfg, rng) {
       dealt: false, folded: false, allIn: false, hasActed: false, actedBetMark: -1,
       bet: 0, contributed: 0, startStack: cfg.startStack,
       out: false, sittingOut: false, place: 0, bounty: 0, rebuys: 0, totalBuyin: cfg.startStack,
-      stats: { hands: 0, vpip: 0, raises: 0, handsWon: 0, biggestPot: 0 }
+      stats: { hands: 0, vpip: 0, pfr: 0, raises: 0, handsWon: 0, biggestPot: 0, sd: 0, sdWon: 0 }
     });
   }
   this.dealerIdx = this.players.length - 1;
@@ -291,6 +291,7 @@ Engine.prototype.act = function (playerId, decision) {
   p.hasActed = true;
   p.actedBetMark = this.currentBet;
   if (this.street === 0 && (type === 'call' || type === 'bet' || type === 'raise')) p.stats.vpip++;
+  if (this.street === 0 && (type === 'bet' || type === 'raise')) p.stats.pfr++;
   if (type === 'bet' || type === 'raise') p.stats.raises++;
 
   // 推进

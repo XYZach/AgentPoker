@@ -174,7 +174,8 @@ Scene2D.prototype._arcAngle = function (deg0, deg1, t) {
 Scene2D.prototype._layoutSeat = function (pid) {
   var s = this._seats[pid];
   if (!s) return;
-  var th = this._seatAngle(s.seat, this._seatCount);
+  /* 角度索引用 pid(座位序号): s.seat 在首次布局后被覆盖为 {x,y} 坐标对象, 不能再当索引用 */
+  var th = this._seatAngle(pid, this._seatCount);
   var dx = Math.sin(th), dy = Math.cos(th);
   s.dx = dx; s.dy = dy;
   var RX = this.RX, RY = this.RY, cx = this.cx, cy = this.cy;

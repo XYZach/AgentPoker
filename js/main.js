@@ -106,8 +106,26 @@ async function playHand() {
       var decision;
       if (p.isHuman) {
         PK.Hud.updateNameplates(engine);
-        decision = await PK.Hud.showActionbar(engine.legalActions(p), p.name);
+        var leg = engine.legalActions(p);
+        var pre = PK.Hud._preactMode; /* 预选动作: null | 'checkcall' | 'fold' */
+        App._heroPotOdds = leg.potOdds; /* 决策点赔率, action 事件入日志时挂到该动作上 */
+        if (pre === 'fold') {
+          decision = { type: 'fold' };
+          PK.Hud.toast('⚡ ' + PK.t('预选生效: 自动弃牌'), 'info', 1500);
+        } else if (pre === 'checkcall') {
+          decision = leg.canCheck ? { type: 'check' } : { type: 'call' };
+          PK.Hud.toast('⚡ ' + (leg.canCheck ? PK.t('预选生效: 自动过牌') : PK.t('预选生效: 自动跟注')), 'info', 1500);
+        }
+        if (decision) await delay(500); /* 预选也有短暂停顿, 动画不至于瞬间闪过 */
+        else decision = await PK.Hud.showActionbar(leg, p.name);
         PK.Hud.updateEquity(null);
+        /* 决策点快照: 胜率/赔率/牌面须在行动前记录(复盘 EV 标注用) */
+        if (App.handLog) App.handLog.decisions.push({
+          street: engine.street, board: engine.board.slice(), pot: leg.potTotal,
+          toCall: leg.toCall, potOdds: leg.potOdds,
+          eq: App.equityResult ? { win: App.equityResult.win, tie: App.equityResult.tie, iters: App.equityResult.iters } : null,
+          act: decision.type, amount: decision.amount || 0
+        });
       } else {
         decision = await aiDecide(p);
       }
@@ -183,7 +201,7 @@ async function handleEvent(ev) {
     case 'handStart': {
       App.handLog = {
         handNo: ev.handNo, sb: ev.sb, bb: ev.bb, ante: ev.ante, level: ev.level,
-        street: 0, board: [], streets: [], actions: [], awards: [], pots: [], elims: [],
+        street: 0, board: [], streets: [], actions: [], awards: [], pots: [], elims: [], decisions: [],
         result: null,
         players: engine.players.map(function (p) {
           /* p.startStack 是引擎在手开始(盲注前)设置的; 此刻 p.stack 已被同步扣过盲注(事件数组滞后播放), 不能用 */
@@ -238,7 +256,14 @@ async function handleEvent(ev) {
     }
     case 'action': {
       var pl = engine.players[ev.playerId];
-      if (App.handLog) App.handLog.actions.push({ street: App.handLog.street, pid: ev.playerId, act: ev.action, amount: ev.amount || 0, to: ev.to || 0 });
+      if (App.handLog) {
+        var ae = { street: App.handLog.street, pid: ev.playerId, act: ev.action, amount: ev.amount || 0, to: ev.to || 0 };
+        if (ev.playerId === App.heroId && App.equityResult) {
+          ae.eq = { win: App.equityResult.win, tie: App.equityResult.tie, iters: App.equityResult.iters };
+          ae.potOdds = App._heroPotOdds || 0;
+        }
+        App.handLog.actions.push(ae);
+      }
       var names = { fold: PK.t('弃牌'), check: PK.t('过牌'), call: PK.t('跟注'), bet: PK.t('下注'), raise: PK.t('加注'), allin: PK.t('全下') };
       var text = names[ev.action];
       if (ev.action === 'call' || ev.action === 'bet' || ev.action === 'raise') text += ' ' + PK.fmt(ev.amount || ev.to || 0);
@@ -489,6 +514,7 @@ function scheduleEquity() {
   }
   var nOpp = Math.max(1, engine.handActive().filter(function (q) { return q.id !== App.heroId; }).length);
   var token = ++App._eqToken;
+  App.equityResult = null; /* 失效旧值: 新一轮模拟完成前不提供过时胜率 */
   var totalIters = 2200;
   var done = 0, win = 0, tie = 0;
   var heroCards = hero.hole.slice(), board = engine.board.slice(), dead = App.deadCards.slice();
@@ -531,7 +557,7 @@ async function requestAdvice() {
     var advice = await PK.LLM.advice(engine, App.heroId, App.equityResult);
     advice.latency = (Date.now() - t0) + 'ms';
     PK.Hud.showAdvice(advice);
-    PK.Hud.setLLMStatus('ok', PK.t('LLM 就绪 · ') + (PK.LLM.stats.lastLatency || 0) + 'ms');
+    updateLLMStatus(); // 统一走主状态刷新(含 model 名与调用数)
   } catch (e) {
     PK.Hud.clearAdvice();
     PK.Hud.setLLMStatus('err', PK.t('LLM 错误: ') + String(e.message || e).slice(0, 60));

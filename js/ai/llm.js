@@ -150,6 +150,45 @@ var LLM = PK.LLM = {
     return { action: String(obj.action || '').toLowerCase(), amount: Number(obj.amount) || 0, reason: String(obj.reason || '').slice(0, 80) };
   },
 
+  /* 教练赛后点评: 复盘弹窗里对整手牌的分析(只用公开信息+已亮出的牌) */
+  coach: async function (engine, playerId, handLog) {
+    var p = engine.players[playerId];
+    var modeName = { cash: '现金局', tourney: '锦标赛', squid: '鱿鱼场' }[engine.cfg.mode];
+    var L = [];
+    L.push('【复盘请求: ' + modeName + ' 第' + handLog.handNo + '手】盲注 ' + handLog.sb + '/' + handLog.bb +
+      (handLog.ante ? ' 前注' + handLog.ante : ''));
+    L.push('公共牌: ' + (function () {
+      var s = [];
+      handLog.streets.forEach(function (st) {
+        s.push(['翻牌前', '翻牌', '转牌', '河牌'][st.street] + ' ' + PK.cardsName(st.cards));
+      });
+      return s.length ? s.join(' | ') : '(翻牌前结束)';
+    })());
+    L.push('你的手牌: ' + PK.cardsName(p.hole));
+    handLog.players.forEach(function (rp) {
+      if (!rp.dealt || rp.isHero) return;
+      var st = rp.folded ? '弃牌' : (rp.out ? '出局' : '跟到结束');
+      L.push('对手 ' + rp.name + '(' + (PK.AI_STYLES[rp.styleKey] ? PK.AI_STYLES[rp.styleKey].label : rp.styleKey) + '): ' + st);
+    });
+    L.push('你的决策时间线(含当时胜率与底池赔率):');
+    (handLog.decisions || []).forEach(function (d) {
+      L.push('- ' + ['翻牌前', '翻牌', '转牌', '河牌'][d.street] + ': ' +
+        ({ fold: '弃牌', check: '过牌', call: '跟注', bet: '下注', raise: '加注', allin: '全下' }[d.act] || d.act) +
+        (d.amount ? ' ' + d.amount : '') +
+        (d.eq ? ' (胜率 ' + Math.round((d.eq.win + d.eq.tie / 2) * 100) + '%' +
+          (d.potOdds > 0 ? ' 需' + Math.round(d.potOdds * 100) + '%' : '') + ')' : '') +
+        ' (当时公共牌: ' + (d.board.length ? PK.cardsName(d.board) : '无') + ')');
+    });
+    var awardTxt = (handLog.awards || []).map(function (aw) {
+      return engine.players[aw.pid].name + ' +' + aw.amount;
+    }).join(', ');
+    L.push('本手结果: ' + (awardTxt || '无人赢池'));
+    var sys = '你是德州扑克教练, 正在赛后复盘一手牌。请犀利简短地分析: 逐个点评玩家(人类)的关键决策是否合理(结合胜率与赔率), 指出最大的一个失误或最值得肯定的一手, 并给一条可执行的建议。总字数不超过 220 字, 用中文。';
+    var user = L.join('\n') + '\n\n直接输出点评文字, 不要 JSON, 不要 markdown 标题。';
+    var txt = await this.chat(sys, user, { maxTokens: 600, temperature: 0.5 });
+    return txt.trim().slice(0, 600);
+  },
+
   /* 把 LLM 动作规范化为引擎合法动作(非法则返回 null) */
   normalize: function (engine, playerId, llmAction) {
     var p = engine.players[playerId];
