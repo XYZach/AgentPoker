@@ -103,7 +103,7 @@ async function playHand() {
   while (!engine.handOver && engine.phase !== 'done' && guard++ < 800) {
     if (engine.awaiting) {
       var p = engine.awaiting;
-      var decision;
+      var decision = null; /* 循环体必须显式重置: var 重复声明是 no-op, 会残留上一轮 AI 决策导致 hero 被代打 */
       if (p.isHuman) {
         PK.Hud.updateNameplates(engine);
         var leg = engine.legalActions(p);
