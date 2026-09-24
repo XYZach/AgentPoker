@@ -128,11 +128,17 @@ Scene2D.prototype._layout = function () {
   Object.keys(this._seats).forEach(function (pid) {
     self._applySeat(+pid);
   });
-  // 已落位卡牌重排
+  // 已落位卡牌重排(摊牌展开的牌保持展开位)
   this._cards.forEach(function (c) {
     if (c.mucked || c._flying) return;
     var p = self._cardPlace(c.place);
-    if (p) self._placeCard(c, p.x, p.y);
+    if (!p) return;
+    if (c._revealed && c.place && c.place.type === 'hole' && c.place.playerId !== 0) {
+      var o = self._holeOffset(c.place.playerId, c.place.k, true);
+      var s = self._seats[c.place.playerId];
+      if (s) p = { x: s.card.x + o.x, y: s.card.y + o.y };
+    }
+    self._placeCard(c, p.x, p.y);
   });
   if (this._dealerBtn && this._dealerBtnTo != null) this._positionDealerBtn(this._dealerBtnTo);
 };
@@ -208,7 +214,7 @@ Scene2D.prototype._applySeat = function (pid) {
 
 var RECTS = {
   plateW: 124, plateH: 88, av: 28,
-  cardsW: 96, cardsH: 66,      // 两侧手牌占位(k0+k1)
+  cardsW: 64, cardsH: 66,       // 两侧手牌占位(叠放微错开, 收紧)
   heroCardsW: 140, heroCardsH: 96,
   betW: 62, betH: 104          // 下注标签+筹码堆
 };
@@ -241,7 +247,7 @@ Scene2D.prototype._resolveOverlaps = function () {
   // 紧凑模式尺寸
   RECTS.plateW = this._compact ? 104 : 124;
   RECTS.plateH = this._compact ? 80 : 92;
-  RECTS.cardsW = this._compact ? 84 : 96;
+  RECTS.cardsW = this._compact ? 54 : 64;
   RECTS.cardsH = this._compact ? 58 : 66;
   function obstaclesFor(pid) {
     var list = [];
@@ -335,6 +341,14 @@ Scene2D.prototype._resolveOverlaps = function () {
   }
 };
 
+/* 手牌两张的相对偏移: hero 平铺大牌; AI 盖牌叠放微错开(省桌面); 摊牌时展开露牌面 */
+Scene2D.prototype._holeOffset = function (playerId, k, revealed) {
+  if (playerId === 0) return { x: k === 0 ? -36 : 36, y: 0 };
+  if (revealed) return { x: k === 0 ? -24 : 24, y: k === 0 ? 4 : -4 };
+  var d = this._compact ? 6 : 7;
+  return { x: k === 0 ? -d : d, y: k === 0 ? 3 : -3 };
+};
+
 Scene2D.prototype._cardPlace = function (place) {
   if (!place) return null;
   if (place.type === 'community') {
@@ -343,10 +357,8 @@ Scene2D.prototype._cardPlace = function (place) {
   }
   var s = this._seats[place.playerId];
   if (!s) return null;
-  if (place.playerId === 0) {
-    return { x: s.card.x + (place.k === 0 ? -36 : 36), y: s.card.y };
-  }
-  return { x: s.card.x + (place.k === 0 ? -22 : 22), y: s.card.y + (place.k === 1 ? -4 : 0) };
+  var o = this._holeOffset(place.playerId, place.k, false);
+  return { x: s.card.x + o.x, y: s.card.y + o.y };
 };
 
 /* ---------- 玩家 ---------- */
@@ -460,12 +472,23 @@ Scene2D.prototype.dealCommunity = function (cards) {
 
 Scene2D.prototype.revealHole = function (playerId) {
   var self = this;
+  var s = this._seats[playerId];
   var mine = this._cards.filter(function (c) { return c.playerId === playerId && !c.mucked && !c.heroCard; });
   return Promise.all(mine.map(function (c) {
+    /* 叠放手牌摊牌时展开到两侧, 翻面同时移位, 露出两张牌面 */
+    c._revealed = true;
+    var k = c.place ? c.place.k : 0;
+    var o = self._holeOffset(playerId, k, true);
+    var tx = s ? s.card.x + o.x : c.x, ty = s ? s.card.y + o.y : c.y;
+    var fx = c.x, fy = c.y;
     return T.add({
       dur: 300 / self.speed, ease: T.Ease.outCubic,
-      onUpdate: function (t) { c.inner.style.transform = 'rotateY(' + (180 - 180 * t) + 'deg)'; }
-    });
+      onUpdate: function (t) {
+        c.inner.style.transform = 'rotateY(' + (180 - 180 * t) + 'deg)';
+        var x = fx + (tx - fx) * t, y = fy + (ty - fy) * t;
+        c.root.style.transform = 'translate(' + (x - c.w / 2) + 'px,' + (y - c.h / 2) + 'px)';
+      }
+    }).then(function () { self._placeCard(c, tx, ty); });
   }));
 };
 
