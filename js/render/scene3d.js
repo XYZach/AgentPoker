@@ -135,9 +135,12 @@ Scene3D.prototype._buildEnvironment = function () {
 /* ---------- 牌桌 ---------- */
 Scene3D.prototype._buildTable = function () {
   var railMat = new THREE.MeshStandardMaterial({ color: 0x4a2f1e, roughness: 0.5, metalness: 0.08 });
-  // 轨道(挤出 + 倒角)
+  // 轨道 = 环形(外椭圆 + 内孔), 不能用实心椭圆, 否则会盖住整个桌面
   var shape = new THREE.Shape();
   shape.absellipse(0, 0, 7.15, 4.6, 0, Math.PI * 2, false, 0);
+  var holePath = new THREE.Path();
+  holePath.absellipse(0, 0, 5.95, 3.5, 0, Math.PI * 2, true, 0);
+  shape.holes.push(holePath);
   var rail = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {
     depth: 0.34, bevelEnabled: true, bevelThickness: 0.14, bevelSize: 0.13, bevelSegments: 4, curveSegments: 72
   }), railMat);
@@ -157,13 +160,13 @@ Scene3D.prototype._buildTable = function () {
   felt.receiveShadow = true;
   this.scene.add(felt);
 
-  // 桌布下的衬板(防止穿透感)
+  // 桌布下的衬板(顶面略低于桌布, 避免 Z-fighting)
   var board = new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 0.3, 72),
     new THREE.MeshStandardMaterial({ color: 0x20301f, roughness: 0.9 })
   );
   board.scale.set(FELT_RX + 0.25, 1, FELT_RZ + 0.25);
-  board.position.y = 0.85;
+  board.position.y = 0.83;
   board.castShadow = true;
   this.scene.add(board);
 
